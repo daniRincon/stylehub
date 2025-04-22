@@ -1,36 +1,152 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+stylehub/
+├── app/
+│   ├── (store)/
+│   │   ├── page.tsx
+│   │   ├── categoria/
+│   │   │   └── [slug]/
+│   │   │       └── page.tsx
+│   │   ├── cuenta/
+│   │   │   ├── page.tsx
+│   │   │   ├── pedidos/
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── [id]/
+│   │   │   │       └── page.tsx
+│   │   │   └── perfil/
+│   │   │       └── page.tsx
+│   │   └── layout.tsx
+│   ├── admin/
+│   │   ├── page.tsx
+│   │   ├── layout.tsx
+│   │   ├── productos/
+│   │   │   ├── page.tsx
+│   │   │   ├── loading.tsx
+│   │   │   ├── nuevo/
+│   │   │   │   └── page.tsx
+│   │   │   └── editar/
+│   │   │       └── [slug]/
+│   │   │           └── page.tsx
+│   │   ├── categorias/
+│   │   │   ├── page.tsx
+│   │   │   ├── loading.tsx
+│   │   │   ├── nueva/
+│   │   │   │   └── page.tsx
+│   │   │   └── editar/
+│   │   │       └── [slug]/
+│   │   │           └── page.tsx
+│   │   ├── pedidos/
+│   │   │   ├── page.tsx
+│   │   │   ├── loading.tsx
+│   │   │   └── [id]/
+│   │   │       └── page.tsx
+│   │   ├── usuarios/
+│   │   │   ├── page.tsx
+│   │   │   ├── loading.tsx
+│   │   │   ├── nuevo/
+│   │   │   │   └── page.tsx
+│   │   │   └── editar/
+│   │   │       └── [id]/
+│   │   │           └── page.tsx
+│   │   └── configuracion/
+│   │       └── page.tsx
+│   ├── api/
+│   │   ├── products/
+│   │   │   ├── route.ts
+│   │   │   └── [slug]/
+│   │   │       └── route.ts
+│   │   ├── categories/
+│   │   │   ├── route.ts
+│   │   │   └── [slug]/
+│   │   │       └── route.ts
+│   │   ├── users/
+│   │   │   ├── route.ts
+│   │   │   └── [id]/
+│   │   │       └── route.ts
+│   │   ├── orders/
+│   │   │   ├── route.ts
+│   │   │   └── [id]/
+│   │   │       └── route.ts
+│   │   ├── auth/
+│   │   │   └── [...nextauth]/
+│   │   │       └── route.ts
+│   │   └── upload/
+│   │       └── route.ts
+│   ├── auth/
+│   │   ├── login/
+│   │   │   └── page.tsx
+│   │   └── registro/
+│   │       └── page.tsx
+│   ├── producto/
+│   │   └── [slug]/
+│   │       └── page.tsx
+│   ├── carrito/
+│   │   └── page.tsx
+│   ├── checkout/
+│   │   ├── page.tsx
+│   │   └── confirmacion/
+│   │       └── page.tsx
+│   ├── layout.tsx
+│   ├── page.tsx
+│   └── globals.css
+├── components/
+│   ├── admin/
+│   │   ├── admin-header.tsx
+│   │   ├── admin-sidebar.tsx
+│   │   ├── product-form.tsx
+│   │   ├── category-form.tsx
+│   │   ├── user-form.tsx
+│   │   ├── order-details.tsx
+│   │   └── dashboard/
+│   │       ├── sales-chart.tsx
+│   │       ├── recent-orders.tsx
+│   │       └── stats-cards.tsx
+│   ├── store/
+│   │   ├── store-header.tsx
+│   │   ├── store-footer.tsx
+│   │   ├── hero-section.tsx
+│   │   ├── category-section.tsx
+│   │   ├── featured-products.tsx
+│   │   ├── newsletter-section.tsx
+│   │   ├── product-grid.tsx
+│   │   ├── product-card.tsx
+│   │   ├── cart-item.tsx
+│   │   └── checkout-form.tsx
+│   ├── auth/
+│   │   ├── login-form.tsx
+│   │   └── register-form.tsx
+│   ├── ui/
+│   │   └── ... (componentes de shadcn/ui)
+│   └── theme-provider.tsx
+├── lib/
+│   ├── hooks/
+│   │   ├── use-cart.tsx
+│   │   ├── use-auth.tsx
+│   │   └── use-toast.ts
+│   ├── actions/
+│   │   ├── product-actions.ts
+│   │   ├── category-actions.ts
+│   │   ├── user-actions.ts
+│   │   └── order-actions.ts
+│   ├── auth.ts
+│   ├── prisma.ts
+│   ├── formatters.ts
+│   ├── validators.ts
+│   ├── types.ts
+│   └── utils.ts
+├── prisma/
+│   ├── schema.prisma
+│   └── seed.ts
+├── middleware.ts
+├── public/
+│   ├── logo.svg
+│   └── images/
+│       └── ... (imágenes del sitio)
+├── types/
+│   ├── next-auth.d.ts
+│   └── index.ts
+├── .env
+├── .env.example
+├── .gitignore
+├── next.config.js
+├── package.json
+├── tailwind.config.ts
+└── tsconfig.json
