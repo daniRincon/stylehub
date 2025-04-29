@@ -10,14 +10,15 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData()
     const file = formData.get("file") as File
-    const productId = formData.get("productId") as string
+    const type = formData.get("type") as string // 'product' o 'category'
+    const id = formData.get("id") as string // productId o categoryId dependiendo del tipo
 
     if (!file) {
       return NextResponse.json({ error: "No se proporcionó ningún archivo" }, { status: 400 })
     }
 
-    if (!productId) {
-      return NextResponse.json({ error: "No se proporcionó el ID del producto" }, { status: 400 })
+    if (!type || !id) {
+      return NextResponse.json({ error: "Faltan parámetros (type o id)" }, { status: 400 })
     }
 
     // Validar que sea una imagen
@@ -29,31 +30,42 @@ export async function POST(request: Request) {
     const fileExtension = file.name.split(".").pop()
     const fileName = `${uuidv4()}.${fileExtension}`
 
-    // Directorio destino
-    const productsDir = join(process.cwd(), "public", "uploads", "products")
+    // Directorio destino dependiendo del tipo (producto o categoría)
+    const uploadsDir = join(process.cwd(), "public", "uploads", type === "product" ? "products" : "categories")
 
     // Crear el directorio si no existe
-    if (!existsSync(productsDir)) {
-      await mkdir(productsDir, { recursive: true })
+    if (!existsSync(uploadsDir)) {
+      await mkdir(uploadsDir, { recursive: true })
     }
 
     // Ruta del archivo
-    const filePath = join(productsDir, fileName)
+    const filePath = join(uploadsDir, fileName)
 
     // Escribir el archivo
     const fileBuffer = await file.arrayBuffer()
     await writeFile(filePath, Buffer.from(fileBuffer))
 
     // URL pública para mostrar en el frontend
-    const fileUrl = `/uploads/products/${fileName}`
+    const fileUrl = `/uploads/${type === "product" ? "products" : "categories"}/${fileName}`
 
-    // Registrar la URL de la imagen en la base de datos
-    await prisma.productImage.create({
-      data: {
-        url: fileUrl,
-        productId: productId, // Asociamos la imagen con el producto correspondiente
-      },
-    })
+    // Registrar la URL de la imagen en la base de datos dependiendo del tipo
+    if (type === "product") {
+      await prisma.productImage.create({
+        data: {
+          url: fileUrl,
+          productId: id, // Asociamos la imagen con el producto correspondiente
+        },
+      })
+    } else if (type === "category") {
+      await prisma.categoryImage.create({
+        data: {
+          url: fileUrl,
+          categoryId: id, // Asociamos la imagen con la categoría correspondiente
+        },
+      })
+    } else {
+      return NextResponse.json({ error: "Tipo no válido (debe ser 'product' o 'category')" }, { status: 400 })
+    }
 
     return NextResponse.json({ url: fileUrl }, { status: 201 })
   } catch (error) {

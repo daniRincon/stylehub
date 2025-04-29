@@ -30,8 +30,8 @@ export default function AdminSidebar() {
       icon: Users,
     },
     {
-      name: "Estadísticas",
-      path: "/admin/estadisticas",
+      name: "Categorías",
+      path: "/admin/categorias",
       icon: BarChart3,
     },
     {

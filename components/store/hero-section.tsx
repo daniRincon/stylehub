@@ -7,7 +7,7 @@ export default function HeroSection() {
       <div
         className="absolute inset-0 bg-cover bg-center z-0"
         style={{
-          backgroundImage: "url('/placeholder.svg?height=800&width=1600')",
+          backgroundImage: `url(https://images.unsplash.com/photo-1605859465655-84c45e14a0af?q=80&w=2071&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)`,
           opacity: 0.4,
         }}
       />
@@ -20,10 +20,10 @@ export default function HeroSection() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Link href="/tienda">
-              <Button className="bg-gold hover:bg-gold/90 text-white">Comprar Ahora</Button>
+              <Button className="bg-dark-green  text-white hover:bg-gold/50">Comprar Ahora</Button>
             </Link>
             <Link href="/categoria/camisas">
-              <Button variant="outline" className="border-white text-white hover:bg-white/10">
+              <Button variant="outline" className="border-white text-dark-green hover:bg-dark-green/50">
                 Ver Colección
               </Button>
             </Link>

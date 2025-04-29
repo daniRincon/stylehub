@@ -1,10 +1,17 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { ShoppingBag, Search, Eye, MoreHorizontal } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useState } from "react";
+import { ShoppingBag, Search, Eye, MoreHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,10 +19,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // Sample orders data
 const initialOrders = [
@@ -64,39 +77,39 @@ const initialOrders = [
     total: 149.99,
     items: 3,
   },
-]
+];
 
 export default function PedidosPage() {
-  const [orders, setOrders] = useState(initialOrders)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("")
+  const [orders] = useState(initialOrders); // Eliminar setOrders
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   // Filter orders based on search term and status
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.email.toLowerCase().includes(searchTerm.toLowerCase())
+      order.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === "" || order.status === statusFilter
+    const matchesStatus = statusFilter === "" || order.status === statusFilter;
 
-    return matchesSearch && matchesStatus
-  })
+    return matchesSearch && matchesStatus;
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "delivered":
-        return <Badge className="bg-green-500">Entregado</Badge>
+        return <Badge className="bg-green-500">Entregado</Badge>;
       case "shipped":
-        return <Badge className="bg-blue-500">Enviado</Badge>
+        return <Badge className="bg-blue-500">Enviado</Badge>;
       case "processing":
-        return <Badge className="bg-yellow-500">Procesando</Badge>
+        return <Badge className="bg-yellow-500">Procesando</Badge>;
       case "cancelled":
-        return <Badge className="bg-red-500">Cancelado</Badge>
+        return <Badge className="bg-red-500">Cancelado</Badge>;
       default:
-        return <Badge>{status}</Badge>
+        return <Badge>{status}</Badge>;
     }
-  }
+  };
 
   return (
     <div>
@@ -139,8 +152,8 @@ export default function PedidosPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setSearchTerm("")
-                  setStatusFilter("")
+                  setSearchTerm("");
+                  setStatusFilter("");
                 }}
               >
                 Limpiar filtros
@@ -172,13 +185,17 @@ export default function PedidosPage() {
                     <TableCell>
                       <div>
                         <div className="font-medium">{order.customer}</div>
-                        <div className="text-sm text-muted-foreground">{order.email}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {order.email}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>{order.date}</TableCell>
                     <TableCell>{getStatusBadge(order.status)}</TableCell>
                     <TableCell>{order.items} productos</TableCell>
-                    <TableCell className="text-right font-medium">${order.total.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      ${order.total.toFixed(2)}
+                    </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -215,5 +232,5 @@ export default function PedidosPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

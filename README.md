@@ -150,3 +150,5 @@ stylehub/
 ├── package.json
 ├── tailwind.config.ts
 └── tsconfig.json
+
+[Title](app/api/products) [Title](app/api/products/%5Bid%5D) [Title](app/api/products/%5Bid%5D/images) [Title](app/api/products/%5Bid%5D/route.ts) [Title](app/api/products/%5Bslug%5D) [Title](app/api/products/%5Bslug%5D/route.ts) [Title](app/api/products/route.ts)

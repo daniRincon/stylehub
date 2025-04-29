@@ -1,14 +1,36 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { List, ImageIcon, Pencil, Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { List, ImageIcon, Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
-// Sample product data
-const initialProducts = [
+interface Product {
+  id: number;
+  nombre: string;
+  categoria: string;
+  stock: number;
+  descripcion: string;
+  imagen: string;
+}
+
+const initialProducts: Product[] = [
   {
     id: 1,
     nombre: "Laptop Asus",
@@ -17,12 +39,13 @@ const initialProducts = [
     descripcion: "Descripción...",
     imagen: "/placeholder.svg?height=50&width=50",
   },
-]
+];
 
 export default function ProductList() {
-  const [products, setProducts] = useState(initialProducts)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [entriesPerPage, setEntriesPerPage] = useState("10")
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [entriesPerPage, setEntriesPerPage] = useState("10");
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Filter products based on search term
   const filteredProducts = products.filter(
@@ -30,7 +53,13 @@ export default function ProductList() {
       product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.descripcion.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  );
+
+  const entries = parseInt(entriesPerPage, 10);
+  const startIndex = (currentPage - 1) * entries;
+  const endIndex = startIndex + entries;
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(filteredProducts.length / entries);
 
   return (
     <div className="bg-white rounded-md shadow">
@@ -44,8 +73,8 @@ export default function ProductList() {
           <div className="flex items-center">
             <span className="mr-2">Mostrar</span>
             <Select value={entriesPerPage} onValueChange={setEntriesPerPage}>
-              <SelectTrigger className="w-[80px]">
-                <SelectValue placeholder="10" />
+              <SelectTrigger className="w-[80px]" aria-placeholder="10">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="10">10</SelectItem>
@@ -82,8 +111,8 @@ export default function ProductList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => (
+              {paginatedProducts.length > 0 ? (
+                paginatedProducts.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell className="text-center">{product.id}</TableCell>
                     <TableCell>{product.nombre}</TableCell>
@@ -91,23 +120,41 @@ export default function ProductList() {
                     <TableCell>{product.stock}</TableCell>
                     <TableCell>{product.descripcion}</TableCell>
                     <TableCell>
-                      <img
+                      <Image
                         src={product.imagen || "/placeholder.svg"}
                         alt={product.nombre}
+                        width={50}
+                        height={50}
                         className="w-10 h-10 object-cover"
+                        loader={({ src }) => src}
                       />
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-center space-x-2">
-                        <Button variant="outline" size="icon" className="h-8 w-8 text-green-600">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 text-green-600"
+                          aria-label="Ver imagen"
+                        >
                           <ImageIcon className="h-4 w-4" />
                           <span className="sr-only">Ver imagen</span>
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 text-amber-500">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 text-amber-500"
+                          aria-label="Editar"
+                        >
                           <Pencil className="h-4 w-4" />
                           <span className="sr-only">Editar</span>
                         </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8 text-red-600">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 text-red-600"
+                          aria-label="Eliminar"
+                        >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Eliminar</span>
                         </Button>
@@ -122,8 +169,7 @@ export default function ProductList() {
                   </TableCell>
                 </TableRow>
               )}
-              {/* Empty rows to match the design */}
-              {Array.from({ length: 9 }).map((_, index) => (
+              {Array.from({ length: Math.max(0, parseInt(entriesPerPage, 10) - paginatedProducts.length) }).map((_, index) => (
                 <TableRow key={`empty-${index}`}>
                   <TableCell></TableCell>
                   <TableCell></TableCell>
@@ -137,7 +183,27 @@ export default function ProductList() {
             </TableBody>
           </Table>
         </div>
+
+        <div className="flex justify-between mt-4">
+          <Button
+            variant="outline"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(currentPage - 1)}
+          >
+            Anterior
+          </Button>
+          <span>
+            Página {currentPage} de {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(currentPage + 1)}
+          >
+            Siguiente
+          </Button>
+        </div>
       </div>
     </div>
-  )
+  );
 }

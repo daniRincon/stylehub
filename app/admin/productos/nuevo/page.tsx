@@ -1,30 +1,31 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Package, Upload, ArrowLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import type React from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Package, Upload, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { toast } from "sonner"
+} from "@/components/ui/select";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
+import Image from "next/image"; // Importa el componente Image
 
 export default function NuevoProductoPage() {
-  const router = useRouter()
+  const router = useRouter();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -32,51 +33,51 @@ export default function NuevoProductoPage() {
     category: "",
     description: "",
     stock: "",
-  })
+  });
 
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file)
-      const reader = new FileReader()
+      setImageFile(file);
+      const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     // Ejemplo usando FormData para enviar al backend
-    const data = new FormData()
-    data.append("name", formData.name)
-    data.append("price", formData.price)
-    data.append("stock", formData.stock)
-    data.append("category", formData.category)
-    data.append("description", formData.description)
-    if (imageFile) data.append("image", imageFile)
+    const data = new FormData();
+    data.append("name", formData.name);
+    data.append("price", formData.price);
+    data.append("stock", formData.stock);
+    data.append("category", formData.category);
+    data.append("description", formData.description);
+    if (imageFile) data.append("image", imageFile);
 
     // Aquí iría la llamada real al backend (ej: fetch POST a /api/productos)
 
-    toast.success("Producto creado exitosamente.")
-    router.push("/admin/productos")
-  }
+    toast.success("Producto creado exitosamente.");
+    router.push("/admin/productos");
+  };
 
   return (
     <div>
@@ -188,17 +189,19 @@ export default function NuevoProductoPage() {
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                     {imagePreview ? (
                       <div className="space-y-4">
-                        <img
-                          src={imagePreview}
+                        <Image // Usa el componente Image
+                          src={imagePreview!}
                           alt="Vista previa"
+                          width={160} // Ajusta según tus necesidades
+                          height={160} // Ajusta según tus necesidades
                           className="mx-auto h-40 w-40 object-cover rounded-md"
                         />
                         <Button
                           type="button"
                           variant="outline"
                           onClick={() => {
-                            setImagePreview(null)
-                            setImageFile(null)
+                            setImagePreview(null);
+                            setImageFile(null);
                           }}
                         >
                           Cambiar imagen
@@ -218,7 +221,11 @@ export default function NuevoProductoPage() {
                           onChange={handleImageChange}
                         />
                         <Label htmlFor="image" asChild>
-                          <Button variant="outline" className="mt-2" type="button">
+                          <Button
+                            variant="outline"
+                            className="mt-2"
+                            type="button"
+                          >
                             Seleccionar Archivo
                           </Button>
                         </Label>
@@ -235,10 +242,17 @@ export default function NuevoProductoPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
-                  <Button variant="outline" type="button" onClick={() => router.back()}>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => router.back()}
+                  >
                     Cancelar
                   </Button>
-                  <Button type="submit" className="bg-dark-green hover:bg-dark-green/90 text-white">
+                  <Button
+                    type="submit"
+                    className="bg-dark-green hover:bg-dark-green/90 text-white"
+                  >
                     Guardar Producto
                   </Button>
                 </div>
@@ -248,5 +262,5 @@ export default function NuevoProductoPage() {
         </div>
       </form>
     </div>
-  )
+  );
 }

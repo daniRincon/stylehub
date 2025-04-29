@@ -1,17 +1,31 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"  // Importar de 'next/navigation'
-import { useParams } from "next/navigation"  // Para obtener parámetros dinámicos
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Edit } from "lucide-react"
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Edit } from "lucide-react";
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  description: string;
+  stock: number;
+}
 
 // Simular obtener productos desde un servidor o base de datos
-const initialProducts = [
+const initialProducts: Product[] = [
   {
     id: "1",
     name: "Camisa Casual",
@@ -29,41 +43,39 @@ const initialProducts = [
     stock: 15,
   },
   // Más productos...
-]
+];
 
 export default function EditarProductoPage() {
-  const router = useRouter()
-  const { id } = useParams()  // Usar useParams para acceder al id dinámico
+  const router = useRouter();
+  const { id } = useParams();
 
-  const [product, setProduct] = useState<any>(null)
-  const [name, setName] = useState("")
-  const [price, setPrice] = useState(0)
-  const [category, setCategory] = useState("")
-  const [description, setDescription] = useState("")
-  const [stock, setStock] = useState(0)
+  const [product, setProduct] = useState<Product | null>(null);
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState(0);
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+  const [stock, setStock] = useState(0);
 
-  // Cargar los detalles del producto cuando el componente se monta
   useEffect(() => {
     if (id) {
-      const productToEdit = initialProducts.find((p) => p.id === id)
+      const productToEdit = initialProducts.find((p) => p.id === id);
       if (productToEdit) {
-        setProduct(productToEdit)
-        setName(productToEdit.name)
-        setPrice(productToEdit.price)
-        setCategory(productToEdit.category)
-        setDescription(productToEdit.description)
-        setStock(productToEdit.stock)
+        setProduct(productToEdit);
+        setName(productToEdit.name);
+        setPrice(productToEdit.price);
+        setCategory(productToEdit.category);
+        setDescription(productToEdit.description);
+        setStock(productToEdit.stock);
       }
     }
-  }, [id])
+  }, [id]);
 
   const handleSave = () => {
-    // Aquí puedes agregar lógica para guardar los cambios (en un servidor o base de datos)
-    alert("Producto actualizado con éxito!")
-    router.push("/admin/productos") // Redirigir de vuelta a la lista de productos
-  }
+    alert("Producto actualizado con éxito!");
+    router.push("/admin/productos");
+  };
 
-  if (!product) return <div>Cargando...</div>
+  if (!product) return <div>Cargando...</div>;
 
   return (
     <div>
@@ -145,5 +157,5 @@ export default function EditarProductoPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

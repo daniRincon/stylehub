@@ -1,18 +1,19 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useParams } from "next/navigation"
-import { ShoppingCart, Heart, Minus, Plus, Check } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { toast } from "sonner"
-import { useCart } from "@/lib/hooks/use-cart"
-import type { Product } from "@/lib/types"
-import StoreHeader from "@/components/store/store-header"
-import StoreFooter from "@/components/store/store-footer"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from "next/navigation";
+import { ShoppingCart, Heart, Minus, Plus, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useCart } from "@/lib/hooks/use-cart";
+import type { Product } from "@/lib/types";
+import StoreHeader from "@/components/store/store-header";
+import StoreFooter from "@/components/store/store-footer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Image from "next/image";
 
 // Aquí se asume que ya tienes una función para obtener productos desde la base de datos
-import { getProductBySlug } from "@/lib/api/products" // Función que deberías crear en tu API
+import { getProductBySlug } from '@/lib/db'; // Función que deberías crear en tu API
 
 // Función para formatear precios en COP
 const formatPrice = (price: number) => {
@@ -23,26 +24,29 @@ const formatPrice = (price: number) => {
 };
 
 export default function ProductPage() {
-  const params = useParams()
-  const { slug } = params
+  const params = useParams();
+  const { slug } = params;
 
   // Aquí cargamos el producto desde la base de datos
-  const [product, setProduct] = useState<Product | null>(null)
+  const [product, setProduct] = useState<Product | null>(null);
+
+  const [quantity, setQuantity] = useState(1);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+
+  const { addItem } = useCart();
+
+  const loadProduct = useCallback(async () => {
+    if(slug){
+      const data = await getProductBySlug(slug); // Obtener el producto por slug
+      setProduct(data);
+    }
+
+  }, [slug])
 
   // Simulando una carga de datos (deberías hacerlo con una llamada real)
   useEffect(() => {
-    const loadProduct = async () => {
-      const data = await getProductBySlug(slug) // Obtener el producto por slug
-      setProduct(data)
-    }
-
-    loadProduct()
-  }, [slug])
-
-  const [quantity, setQuantity] = useState(1)
-  const [selectedSize, setSelectedSize] = useState<string | null>(null)
-
-  const { addItem } = useCart()
+    loadProduct();
+  }, [loadProduct]);
 
   if (!product) {
     return (
@@ -59,7 +63,7 @@ export default function ProductPage() {
         </main>
         <StoreFooter />
       </div>
-    )
+    );
   }
 
   const handleAddToCart = () => {
@@ -68,29 +72,29 @@ export default function ProductPage() {
         title: "Selecciona una talla",
         description: "Por favor selecciona una talla antes de añadir al carrito.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    addItem({ ...product, id: `${product.id}-${selectedSize}` })
+    addItem({ ...product, id: `${product.id}-${selectedSize}` });
 
     toast({
       title: "Producto añadido",
       description: `${product.name} (Talla: ${selectedSize}) ha sido añadido al carrito.`,
-    })
-  }
+    });
+  };
 
   const decreaseQuantity = () => {
     if (quantity > 1) {
-      setQuantity(quantity - 1)
+      setQuantity(quantity - 1);
     }
-  }
+  };
 
   const increaseQuantity = () => {
     if (quantity < product.stock) {
-      setQuantity(quantity + 1)
+      setQuantity(quantity + 1);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -102,19 +106,25 @@ export default function ProductPage() {
             {/* Product Images */}
             <div className="space-y-4">
               <div className="aspect-square overflow-hidden rounded-lg border">
-                <img
+                <Image
                   src={product.image || "/placeholder.svg"}
                   alt={product.name}
+                  width={500}  // Ajusta según tus necesidades
+                  height={500} // Ajusta según tus necesidades
                   className="w-full h-full object-cover"
+                  loader={({ src }) => src}
                 />
               </div>
               <div className="grid grid-cols-4 gap-2">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="aspect-square overflow-hidden rounded-lg border cursor-pointer">
-                    <img
+                    <Image
                       src={product.image || "/placeholder.svg"}
                       alt={`${product.name} - Vista ${i}`}
+                      width={100}  // Ajusta según tus necesidades
+                      height={100} // Ajusta según tus necesidades
                       className="w-full h-full object-cover"
+                      loader={({ src }) => src}
                     />
                   </div>
                 ))}
@@ -140,6 +150,7 @@ export default function ProductPage() {
                       variant={selectedSize === size ? "default" : "outline"}
                       className={selectedSize === size ? "bg-dark-green hover:bg-dark-green/90 text-white" : ""}
                       onClick={() => setSelectedSize(size)}
+                      aria-pressed={selectedSize === size}
                     >
                       {size}
                     </Button>
@@ -150,11 +161,11 @@ export default function ProductPage() {
               <div className="mb-6">
                 <h3 className="font-medium mb-2">Cantidad:</h3>
                 <div className="flex items-center">
-                  <Button variant="outline" size="icon" onClick={decreaseQuantity} disabled={quantity <= 1}>
+                  <Button variant="outline" size="icon" onClick={decreaseQuantity} disabled={quantity <= 1} aria-label="Disminuir cantidad">
                     <Minus className="h-4 w-4" />
                   </Button>
                   <span className="mx-4 w-8 text-center">{quantity}</span>
-                  <Button variant="outline" size="icon" onClick={increaseQuantity} disabled={quantity >= product.stock}>
+                  <Button variant="outline" size="icon" onClick={increaseQuantity} disabled={quantity >= product.stock} aria-label="Aumentar cantidad">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -165,9 +176,8 @@ export default function ProductPage() {
                   <ShoppingCart className="h-4 w-4 mr-2" />
                   Añadir al carrito
                 </Button>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" aria-label="Añadir a favoritos">
                   <Heart className="h-4 w-4" />
-                  <span className="sr-only">Añadir a favoritos</span>
                 </Button>
               </div>
 
@@ -225,5 +235,5 @@ export default function ProductPage() {
 
       <StoreFooter />
     </div>
-  )
+  );
 }

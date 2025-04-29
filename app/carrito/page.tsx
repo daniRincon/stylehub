@@ -1,25 +1,26 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { Trash2, ShoppingBag, ArrowRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { toast } from "sonner"
-import { useCart } from "@/lib/hooks/use-cart"
-import StoreHeader from "@/components/store/store-header"
-import StoreFooter from "@/components/store/store-footer"
+import { useState } from "react";
+import Link from "next/link";
+import { Trash2, ShoppingBag, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { useCart } from "@/lib/hooks/use-cart";
+import StoreHeader from "@/components/store/store-header";
+import StoreFooter from "@/components/store/store-footer";
+import Image from "next/image";
 
 export default function CartPage() {
-  const { items, removeItem, updateQuantity, totalPrice } = useCart()
-  const [couponCode, setCouponCode] = useState("")
+  const { items, removeItem, updateQuantity, totalPrice } = useCart();
+  const [couponCode, setCouponCode] = useState("");
 
   const handleApplyCoupon = () => {
-    if (!couponCode) return
+    if (!couponCode) return;
 
-    toast.error("El código de cupón ingresado no es válido.")
-    setCouponCode("")
-  }
+    toast.error("El código de cupón ingresado no es válido.");
+    setCouponCode("");
+  };
 
   if (items.length === 0) {
     return (
@@ -29,7 +30,9 @@ export default function CartPage() {
           <div className="text-center">
             <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
             <h1 className="text-2xl font-bold mb-4">Tu carrito está vacío</h1>
-            <p className="mb-6">Parece que aún no has añadido productos a tu carrito.</p>
+            <p className="mb-6">
+              Parece que aún no has añadido productos a tu carrito.
+            </p>
             <Button className="bg-gold hover:bg-gold/90 text-white" asChild>
               <Link href="/tienda">Ir a la tienda</Link>
             </Button>
@@ -37,7 +40,7 @@ export default function CartPage() {
         </main>
         <StoreFooter />
       </div>
-    )
+    );
   }
 
   return (
@@ -66,14 +69,19 @@ export default function CartPage() {
                       <tr key={item.product.id} className="border-b">
                         <td className="py-4 px-4">
                           <div className="flex items-center">
-                            <img
+                            <Image
                               src={item.product.image || "/placeholder.svg"}
                               alt={item.product.name}
+                              width={100} // Ajusta según tus necesidades
+                              height={100} // Ajusta según tus necesidades
                               className="w-16 h-16 object-cover rounded mr-4"
+                              loader={({ src }) => src}
                             />
                             <div>
                               <h3 className="font-medium">{item.product.name}</h3>
-                              <p className="text-sm text-muted-foreground">Categoría: {item.product.category}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Categoría: {item.product.category}
+                              </p>
                             </div>
                           </div>
                         </td>
@@ -83,24 +91,40 @@ export default function CartPage() {
                               variant="outline"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                              onClick={() =>
+                                updateQuantity(
+                                  item.product.id,
+                                  item.quantity - 1
+                                )
+                              }
                               disabled={item.quantity <= 1}
+                              aria-label="Disminuir cantidad"
                             >
                               -
                             </Button>
-                            <span className="mx-2 w-8 text-center">{item.quantity}</span>
+                            <span className="mx-2 w-8 text-center">
+                              {item.quantity}
+                            </span>
                             <Button
                               variant="outline"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                              onClick={() =>
+                                updateQuantity(
+                                  item.product.id,
+                                  item.quantity + 1
+                                )
+                              }
                               disabled={item.quantity >= item.product.stock}
+                              aria-label="Aumentar cantidad"
                             >
                               +
                             </Button>
                           </div>
                         </td>
-                        <td className="py-4 px-4 text-right">${item.product.price.toFixed(2)}</td>
+                        <td className="py-4 px-4 text-right">
+                          ${item.product.price.toFixed(2)}
+                        </td>
                         <td className="py-4 px-4 text-right font-medium">
                           ${(item.product.price * item.quantity).toFixed(2)}
                         </td>
@@ -161,7 +185,10 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                <Button className="w-full bg-dark-green hover:bg-dark-green/90 text-white" asChild>
+                <Button
+                  className="w-full bg-dark-green hover:bg-dark-green/90 text-white"
+                  asChild
+                >
                   <Link href="/checkout">
                     Proceder al pago <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
@@ -174,5 +201,5 @@ export default function CartPage() {
 
       <StoreFooter />
     </div>
-  )
+  );
 }

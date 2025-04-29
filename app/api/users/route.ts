@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { hash } from 'bcrypt'
+import { hash } from 'bcryptjs'
 
 // GET /api/users - Obtener todos los usuarios (solo para administradores)
 export async function GET() {

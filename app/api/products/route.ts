@@ -1,8 +1,24 @@
-// app/api/products/route.ts
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+
+interface ProductWhereInput {
+  category?: {
+    slug: string;
+  };
+  OR?: Array<{ name?: { contains: string; mode: 'insensitive' } } | { description?: { contains: string; mode: 'insensitive' } }>;
+}
+
+type SortOrder = 'asc' | 'desc';
+
+interface ProductOrderByInput {
+  [key: string]: SortOrder;
+}
+
+interface ImageInput {
+  url: string;
+}
 
 // GET /api/products - Obtener todos los productos
 export async function GET(request: Request) {
@@ -17,7 +33,7 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit
     
     // Construir el objeto de filtro
-    const where: any = {}
+    const where: ProductWhereInput = {}
     
     if (category) {
       where.category = {
@@ -33,8 +49,8 @@ export async function GET(request: Request) {
     }
     
     // Construir el objeto de ordenamiento
-    const orderBy: any = {}
-    orderBy[sort] = order
+    const orderBy: ProductOrderByInput = {};
+    orderBy[sort] = order as SortOrder;
     
     // Obtener productos con paginación
     const products = await prisma.product.findMany({
@@ -75,7 +91,7 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions)
     
     // Verificar si el usuario está autenticado y es administrador
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!session || session?.user?.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }

@@ -1,38 +1,50 @@
+export interface ProductImage {
+  id: string;
+  url: string;
+  alt?: string; // Descripción alternativa de la imagen
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  image: string;
+}
+
 export interface Product {
   id: string;
   name: string;
   description: string;
   price: number;
-  image: string;
   stock: number;
-  category: {
-    id: string;
-    name: string;
-    slug: string;
-    [key: string]: any; // Otras propiedades opcionales
-  };
-  images?: { url: string }[];
+  category: Category;
+  images?: ProductImage[];
 }
-  
-  export type Category = {
-    name: string
-    slug: string
-    image: string
-  }
-  
-  export type Order = {
-    id: string
-    customer: {
-      name: string
-      email: string
-      address: string
-    }
-    items: {
-      product: Product
-      quantity: number
-    }[]
-    total: number
-    status: "pending" | "processing" | "shipped" | "delivered" | "cancelled"
-    createdAt: Date
-  }
-  
+
+export interface Customer {
+  name: string;
+  email: string;
+  address: string;
+}
+
+export enum OrderStatus {
+  PENDING = "pending",
+  PROCESSING = "processing",
+  SHIPPED = "shipped",
+  DELIVERED = "delivered",
+  CANCELLED = "cancelled",
+}
+
+export interface OrderItem {
+  product: Product;
+  quantity: number;
+}
+
+export interface Order {
+  id: string;
+  customer: Customer;
+  items: OrderItem[];
+  total: number;
+  status: OrderStatus;
+  createdAt: Date;
+}

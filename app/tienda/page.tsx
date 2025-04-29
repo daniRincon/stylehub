@@ -1,3 +1,4 @@
+"use client";
 import StoreHeader from "@/components/store/store-header";
 import StoreFooter from "@/components/store/store-footer";
 import ProductGrid from "@/components/store/product-grid";
@@ -10,10 +11,11 @@ export default async function TiendaPage() {
   const rawProducts = await getProducts();
   const categories = await getCategories();
 
-  // Convertimos price a número seguro
+  // Convertimos price a número seguro y pasamos imagen
   const products = rawProducts.map((product) => ({
     ...product,
     price: Number(product.price) || 0,
+    image: product.image, // aseguramos traer la imagen
   }));
 
   return (
