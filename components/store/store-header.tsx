@@ -1,132 +1,145 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { ShoppingCart, User, Search, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
-import { useCart } from "@/lib/hooks/use-cart";
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { ShoppingCart, Menu, X, User, Search } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { useCart } from "@/lib/hooks/use-cart"
 
 export default function StoreHeader() {
-    const pathname = usePathname();
-    const { items } = useCart();
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const { items } = useCart()
 
-    const routes = [
-        { name: "Inicio", path: "/" },
-        { name: "Tienda", path: "/tienda" },
-        { name: "Camisas", path: "/categoria/camisas" },
-        { name: "Pantalones", path: "/categoria/pantalones" },
-        { name: "Shorts", path: "/categoria/shorts" },
-        { name: "Zapatos", path: "/categoria/zapatos" },
-        { name: "Gorras", path: "/categoria/gorras" },
-        { name: "Contacto", path: "/contacto" },
-    ];
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
-    return (
-        <header className="bg-white border-b sticky top-0 z-40">
-            <div className="container mx-auto px-4">
-                <div className="flex items-center justify-between h-16">
-                    <div className="flex items-center">
-                        <Link href="/" className="flex items-center" aria-label="Ir a la página de inicio">
-                            <Image src="/logoAMRILLO.png" alt="StyleHub" width={70} height={70} />
-                        </Link>
-                    </div>
+  const itemCount = mounted ? items.reduce((total, item) => total + item.quantity, 0) : 0
 
-                    <nav className="hidden md:flex items-center space-x-6">
-                        {routes.map((route) => (
-                            <Link
-                                key={route.path}
-                                href={route.path}
-                                className={`text-sm font-medium transition-colors hover:text-gold ${pathname === route.path ? "text-gold" : "text-dark-gray"
-                                    }`}
-                            >
-                                {route.name}
-                            </Link>
-                        ))}
-                    </nav>
+  const navigation = [
+    { name: "Inicio", href: "/" },
+    { name: "Tienda", href: "/tienda" },
+    { name: "Camisas", href: "/categoria/camisas" },
+    { name: "Pantalones", href: "/categoria/pantalones" },
+    { name: "Shorts", href: "/categoria/shorts" },
+    { name: "Zapatos", href: "/categoria/zapatos" },
+    { name: "Gorras", href: "/categoria/gorras" },
+    { name: "Contacto", href: "/contacto" },
+  ]
 
-                    <div className="flex items-center space-x-4">
-                        <div className="hidden md:flex relative">
-                            <Input type="search" placeholder="Buscar productos..." className="w-[200px] pr-8" />
-                            <Search className="absolute right-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        </div>
+  return (
+    <header className="bg-white shadow-sm sticky top-0 z-50">
+      <div className="container mx-auto px-4">
+        {/* Top bar */}
+        <div className="flex items-center justify-between py-2 text-sm border-b">
+          <div className="hidden md:block text-muted-foreground">Envío gratis en compras superiores a $100.000</div>
+          <div className="flex items-center space-x-4">
+            <Link href="/login" className="text-muted-foreground hover:text-foreground">
+              Iniciar Sesión
+            </Link>
+            <Link href="/registro" className="text-muted-foreground hover:text-foreground">
+              Registrarse
+            </Link>
+            <Link href="/cuenta" className="text-muted-foreground hover:text-foreground">
+              Mi Cuenta
+            </Link>
+          </div>
+        </div>
 
-                        <Link href="/cuenta" aria-label="Ir a mi cuenta">
-                            <Button variant="ghost" size="icon" className="relative">
-                                <User className="h-5 w-5" />
-                                <span className="sr-only">Mi cuenta</span>
-                            </Button>
-                        </Link>
-
-                        <Link href="/carrito" aria-label="Ir al carrito">
-                            <Button variant="ghost" size="icon" className="relative">
-                                <ShoppingCart className="h-5 w-5" />
-                                <span className="sr-only">Carrito</span>
-                                {items.length > 0 && (
-                                    <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-gold text-white">
-                                        {items.length}
-                                    </Badge>
-                                )}
-                            </Button>
-                        </Link>
-
-                        <Sheet>
-                            <SheetTrigger asChild className="md:hidden">
-                                <Button variant="ghost" size="icon" aria-label="Abrir menú">
-                                    <Menu className="h-5 w-5" />
-                                    <span className="sr-only">Menu</span>
-                                </Button>
-                            </SheetTrigger>
-                            <SheetContent side="left" className="w-[300px] sm:w-[400px]">
-                                <div className="flex flex-col h-full">
-                                    <div className="flex items-center justify-between py-4 border-b">
-                                        <Link href="/" className="flex items-center" aria-label="Ir a la página de inicio">
-                                            <Image src="/logoAMRILLO.png" alt="StyleHub" width={70} height={70} />
-                                        </Link>
-                                    </div>
-                                    <nav className="flex flex-col space-y-4 py-6">
-                                        {routes.map((route) => (
-                                            <Link
-                                                key={route.path}
-                                                href={route.path}
-                                                className={`text-base font-medium transition-colors hover:text-gold ${pathname === route.path ? "text-gold" : "text-dark-gray"
-                                                    }`}
-                                            >
-                                                {route.name}
-                                            </Link>
-                                        ))}
-                                    </nav>
-                                    <div className="mt-auto py-6 border-t">
-                                        <div className="flex relative mb-4">
-                                            <Input type="search" placeholder="Buscar productos..." className="w-full pr-8" />
-                                            <Search className="absolute right-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                        </div>
-                                        <div className="flex space-x-2">
-                                            <Link href="/cuenta" className="flex-1" aria-label="Ir a mi cuenta">
-                                                <Button variant="outline" className="w-full">
-                                                    <User className="h-4 w-4 mr-2" />
-                                                    Mi cuenta
-                                                </Button>
-                                            </Link>
-                                            <Link href="/carrito" className="flex-1" aria-label="Ir al carrito">
-                                                <Button className="w-full bg-gold hover:bg-gold/90 text-white">
-                                                    <ShoppingCart className="h-4 w-4 mr-2" />
-                                                    Carrito
-                                                    {items.length > 0 && <Badge className="ml-2 bg-white text-gold">{items.length}</Badge>}
-                                                </Button>
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-                            </SheetContent>
-                        </Sheet>
-                    </div>
-                </div>
+        {/* Main header */}
+        <div className="flex items-center justify-between py-4">
+          {/* Logo */}
+          <Link href="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gold rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">SH</span>
             </div>
-        </header>
-    );
+            <span className="text-xl font-bold text-dark-gray">StyleHub</span>
+          </Link>
+
+          {/* Search bar - Desktop */}
+          <div className="hidden md:flex flex-1 max-w-md mx-8">
+            <div className="relative w-full">
+              <Input type="search" placeholder="Buscar productos..." className="pl-10 pr-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center space-x-4">
+            {/* User account - Desktop */}
+            <Link
+              href="/cuenta"
+              className="hidden md:flex items-center space-x-1 text-muted-foreground hover:text-foreground"
+            >
+              <User className="h-5 w-5" />
+              <span>Cuenta</span>
+            </Link>
+
+            {/* Cart */}
+            <Link href="/carrito" className="relative">
+              <Button variant="ghost" size="sm" className="relative">
+                <ShoppingCart className="h-5 w-5" />
+                {mounted && itemCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-gold text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {itemCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
+
+            {/* Mobile menu button */}
+            <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Navigation - Desktop */}
+        <nav className="hidden md:block border-t">
+          <div className="flex items-center space-x-8 py-4">
+            {navigation.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {item.name}
+              </Link>
+            ))}
+          </div>
+        </nav>
+      </div>
+
+      {/* Mobile menu */}
+      {isMenuOpen && (
+        <div className="md:hidden border-t bg-white">
+          <div className="container mx-auto px-4 py-4">
+            {/* Mobile search */}
+            <div className="mb-4">
+              <div className="relative">
+                <Input type="search" placeholder="Buscar productos..." className="pl-10 pr-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+
+            {/* Mobile navigation */}
+            <nav className="space-y-2">
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="block py-2 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
+    </header>
+  )
 }

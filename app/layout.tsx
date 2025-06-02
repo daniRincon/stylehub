@@ -1,9 +1,8 @@
 import type React from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import ClientLayout from "@/components/client-layout";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
-import { CartProvider } from "@/lib/hooks/use-cart";  // Importa el CartProvider
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,11 +19,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          <CartProvider>  {/* Envuelve los children con CartProvider */}
-            {children}
-          </CartProvider>
-        </ThemeProvider>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );

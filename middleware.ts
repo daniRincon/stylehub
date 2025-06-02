@@ -1,44 +1,82 @@
-// middleware.ts
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { withAuth } from "next-auth/middleware"
+import { NextResponse } from "next/server"
 
-export async function middleware(request: NextRequest) {
-  // Rutas que requieren autenticación de administrador
-  const adminRoutes = [
-    '/api/products',
-    '/api/categories',
-    '/api/users',
-    '/api/orders',
-  ]
-  
-  // Verificar si la ruta actual requiere autenticación de administrador
-  const requiresAdminAuth = adminRoutes.some(route => 
-    request.nextUrl.pathname.startsWith(route) && 
-    (request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH' || request.method === 'DELETE')
-  )
-  
-  if (requiresAdminAuth) {
-    const token = await getToken({ req: request })
-    
-    // Verificar si el usuario está autenticado y es administrador
-    if (!token || token.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'No autorizado' },
-        { status: 401 }
-      )
+export default withAuth(
+  function middleware(req) {
+    const token = req.nextauth.token
+    const { pathname } = req.nextUrl
+
+    // Permitir acceso libre a páginas de autenticación
+    if (pathname === "/admin/login" || pathname === "/admin/register") {
+      // Si ya está autenticado como admin, redirigir al dashboard
+      if (token?.role === "ADMIN") {
+        return NextResponse.redirect(new URL("/admin", req.url))
+      }
+      // Si no está autenticado o no es admin, permitir acceso
+      return NextResponse.next()
     }
-  }
-  
-  return NextResponse.next()
-}
 
-// Configurar las rutas a las que se aplica el middleware
+    // Proteger otras rutas de admin
+    if (pathname.startsWith("/admin")) {
+      if (!token || token.role !== "ADMIN") {
+        return NextResponse.redirect(new URL("/admin/login", req.url))
+      }
+      return NextResponse.next()
+    }
+
+    // Proteger rutas de cuenta de usuario
+    if (pathname.startsWith("/cuenta")) {
+      if (!token || token.role !== "CUSTOMER") {
+        return NextResponse.redirect(new URL("/login", req.url))
+      }
+      return NextResponse.next()
+    }
+
+    return NextResponse.next()
+  },
+  {
+    callbacks: {
+      authorized: ({ token, req }) => {
+        const { pathname } = req.nextUrl
+
+        // SIEMPRE permitir acceso a estas rutas sin verificación
+        const alwaysAllowedRoutes = [
+          "/api/auth",
+          "/_next",
+          "/favicon.ico",
+          "/admin/login",
+          "/admin/register",
+          "/login",
+          "/registro",
+        ]
+
+        if (alwaysAllowedRoutes.some((route) => pathname.startsWith(route))) {
+          return true
+        }
+
+        // Permitir rutas públicas de la tienda
+        const publicStoreRoutes = ["/", "/categoria", "/producto", "/tienda", "/contacto", "/carrito", "/checkout"]
+
+        if (publicStoreRoutes.some((route) => pathname === "/" || pathname.startsWith(route))) {
+          return true
+        }
+
+        // Para rutas protegidas (/admin, /cuenta), requerir token
+        if (pathname.startsWith("/admin") || pathname.startsWith("/cuenta")) {
+          return !!token
+        }
+
+        // Por defecto, permitir acceso
+        return true
+      },
+    },
+  },
+)
+
 export const config = {
   matcher: [
-    '/api/products/:path*',
-    '/api/categories/:path*',
-    '/api/users/:path*',
-    '/api/orders/:path*',
+    // Solo aplicar middleware a rutas que realmente necesitan protección
+    "/admin/:path*",
+    "/cuenta/:path*",
   ],
 }

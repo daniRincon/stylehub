@@ -19,15 +19,17 @@ export default function Home() {
 
         <div className="container mx-auto py-16">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-2">Productos Destacados</h2>
-            <p className="text-muted-foreground">Descubre nuestra colección de productos destacados</p>
+            <h2 className="text-3xl font-bold mb-2 text-dark-gray">Productos Destacados</h2>
+            <p className="text-dark-gray/70">Descubre nuestra colección de productos destacados</p>
           </div>
 
           <FeaturedProducts />
 
           <div className="text-center mt-8">
             <Link href="/tienda">
-              <Button className="bg-gold hover:bg-gold/90 text-white">Ver todos los productos</Button>
+              <Button className="bg-gold hover:bg-gold/90 text-white px-8 py-3 text-lg font-semibold rounded-lg transition-all duration-300 hover:shadow-lg">
+                Ver todos los productos
+              </Button>
             </Link>
           </div>
         </div>

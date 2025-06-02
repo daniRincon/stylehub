@@ -20,7 +20,7 @@ export default function HeroSection() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Link href="/tienda">
-              <Button className="bg-dark-green  text-white hover:bg-gold/50">Comprar Ahora</Button>
+              <Button className="bg-dark-green text-white hover:bg-gold/50">Comprar Ahora</Button>
             </Link>
             <Link href="/categoria/camisas">
               <Button variant="outline" className="border-white text-dark-green hover:bg-dark-green/50">

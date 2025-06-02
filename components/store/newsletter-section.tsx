@@ -1,27 +1,40 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { toast } from "sonner"
 
 export default function NewsletterSection() {
   const [email, setEmail] = useState("")
-  const [successMessage, setSuccessMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!email) return
 
-    // Simula el envío a la API
-    setSuccessMessage("¡Gracias por suscribirte a nuestro boletín!")
+    setIsLoading(true)
 
-    setEmail("")
+    try {
+      // Simula el envío a la API
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // Borra el mensaje después de unos segundos
-    setTimeout(() => {
-      setSuccessMessage("")
-    }, 4000)
+      toast.success("¡Suscripción exitosa!", {
+        description: "Gracias por suscribirte a nuestro boletín. Recibirás ofertas exclusivas.",
+        duration: 4000,
+      })
+
+      setEmail("")
+    } catch (error) {
+      toast.error("Error al suscribirse", {
+        description: "Por favor, inténtalo de nuevo más tarde.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -41,15 +54,12 @@ export default function NewsletterSection() {
               onChange={(e) => setEmail(e.target.value)}
               className="flex-1 bg-white"
               required
+              disabled={isLoading}
             />
-            <Button type="submit" className="bg-dark-green hover:bg-dark-green/90 text-white">
-              Suscribirse
+            <Button type="submit" className="bg-dark-green hover:bg-dark-green/90 text-white" disabled={isLoading}>
+              {isLoading ? "Suscribiendo..." : "Suscribirse"}
             </Button>
           </form>
-
-          {successMessage && (
-            <p className="mt-4 text-white font-medium">{successMessage}</p>
-          )}
         </div>
       </div>
     </div>

@@ -1,49 +1,36 @@
-"use client"
-
-import { useParams } from "next/navigation"
+import { Suspense } from "react"
+import { notFound } from "next/navigation"
 import StoreHeader from "@/components/store/store-header"
 import StoreFooter from "@/components/store/store-footer"
-import ProductGrid from "@/components/store/product-grid"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import CategoryProductGrid from "@/components/store/category-product-grid"
+import CategoryFilters from "@/components/store/category-filters"
+import prisma from "@/lib/prisma"
 
-const currencyCOP = new Intl.NumberFormat("es-CO", {
-  style: "currency",
-  currency: "COP",
-  minimumFractionDigits: 0,
-})
+// Función para obtener datos de la categoría
+async function getCategoryData(slug: string) {
+  const category = await prisma.category.findUnique({
+    where: { slug },
+    include: {
+      categoryImages: true,
+    },
+  })
 
-const categories = {
-  camisas: {
-    name: "Camisas",
-    description: "Encuentra las mejores camisas para cualquier ocasión.",
-  },
-  pantalones: {
-    name: "Pantalones",
-    description: "Descubre nuestra colección de pantalones de alta calidad.",
-  },
-  shorts: {
-    name: "Shorts",
-    description: "Shorts cómodos y modernos para tu día a día.",
-  },
-  zapatos: {
-    name: "Zapatos",
-    description: "Calzado de calidad para complementar tu estilo.",
-  },
-  gorras: {
-    name: "Gorras",
-    description: "Gorras deportivas y casuales para cualquier ocasión.",
-  },
+  if (!category) {
+    return null
+  }
+
+  return category
 }
 
-export default function CategoryPage() {
-  const params = useParams()
+export default async function CategoryPage({ params }: { params: { slug: string } }) {
+  // Extraer el slug de los parámetros primero
   const { slug } = params
 
-  const category = categories[slug as keyof typeof categories] || {
-    name: "Categoría",
-    description: "Productos de esta categoría.",
+  // Ahora usar el slug extraído
+  const category = await getCategoryData(slug)
+
+  if (!category) {
+    notFound()
   }
 
   return (
@@ -54,100 +41,77 @@ export default function CategoryPage() {
         <div className="container mx-auto px-4">
           <div className="mb-8">
             <h1 className="text-3xl font-bold mb-2">{category.name}</h1>
-            <p className="text-muted-foreground">{category.description}</p>
+            <p className="text-muted-foreground">
+              {category.description || `Explora nuestra colección de ${category.name.toLowerCase()}`}
+            </p>
           </div>
 
           <div className="flex flex-col md:flex-row gap-8">
-            {/* Sidebar filters */}
-            <div className="w-full md:w-64 space-y-6">
-              <div>
-                <h3 className="font-medium mb-3">Categorías</h3>
-                <ul className="space-y-2">
-                  {Object.entries(categories).map(([key, value]) => (
-                    <li key={key}>
-                      <a href={`/categoria/${key}`} className="text-sm hover:text-gold">
-                        {value.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="font-medium mb-3">Precio (COP)</h3>
-                <div className="flex items-center gap-2">
-                  <Input type="number" placeholder={currencyCOP.format(0)} className="w-24" />
-                  <span>-</span>
-                  <Input type="number" placeholder={currencyCOP.format(100000)} className="w-24" />
-                  <Button size="sm" className="bg-gold hover:bg-gold/90 text-white">
-                    Filtrar
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-medium mb-3">Tallas</h3>
-                <div className="flex flex-wrap gap-2">
-                  {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
-                    <div key={size} className="flex items-center">
-                      <input type="checkbox" id={`size-${size}`} className="mr-2" />
-                      <label htmlFor={`size-${size}`} className="text-sm">
-                        {size}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-medium mb-3">Colores</h3>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { name: "Negro", color: "bg-black" },
-                    { name: "Blanco", color: "bg-white border" },
-                    { name: "Rojo", color: "bg-red-500" },
-                    { name: "Azul", color: "bg-blue-500" },
-                    { name: "Verde", color: "bg-green-500" },
-                  ].map((colorOption) => (
-                    <div key={colorOption.name} className="flex items-center">
-                      <input type="checkbox" id={`color-${colorOption.name}`} className="mr-2" />
-                      <label htmlFor={`color-${colorOption.name}`} className="flex items-center">
-                        <span className={`inline-block w-4 h-4 rounded-full ${colorOption.color} mr-1`}></span>
-                        <span className="text-sm">{colorOption.name}</span>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {/* Sidebar con filtros */}
+            <div className="w-full md:w-64">
+              <Suspense fallback={<FiltersSkeleton />}>
+                <CategoryFilters categorySlug={slug} />
+              </Suspense>
             </div>
 
-            {/* Product grid */}
+            {/* Grid de productos */}
             <div className="flex-1">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-medium">Productos</h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">Ordenar por:</span>
-                  <Select defaultValue="featured">
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Ordenar por" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="featured">Destacados</SelectItem>
-                      <SelectItem value="price-asc">Precio: Menor a Mayor</SelectItem>
-                      <SelectItem value="price-desc">Precio: Mayor a Menor</SelectItem>
-                      <SelectItem value="newest">Más Recientes</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <ProductGrid />
+              <Suspense fallback={<ProductGridSkeleton />}>
+                <CategoryProductGrid categorySlug={slug} />
+              </Suspense>
             </div>
           </div>
         </div>
       </main>
 
       <StoreFooter />
+    </div>
+  )
+}
+
+function FiltersSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="h-6 w-24 mb-3 bg-gray-200 animate-pulse"></div>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-5 w-full bg-gray-200 animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="h-6 w-24 mb-3 bg-gray-200 animate-pulse"></div>
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-20 bg-gray-200 animate-pulse"></div>
+          <div className="h-9 w-4 bg-gray-200 animate-pulse"></div>
+          <div className="h-9 w-20 bg-gray-200 animate-pulse"></div>
+          <div className="h-9 w-16 bg-gray-200 animate-pulse"></div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProductGridSkeleton() {
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <div className="h-7 w-32 bg-gray-200 animate-pulse"></div>
+        <div className="h-10 w-48 bg-gray-200 animate-pulse"></div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="border rounded-lg overflow-hidden">
+            <div className="h-64 w-full bg-gray-200 animate-pulse"></div>
+            <div className="p-4 space-y-3">
+              <div className="h-6 w-3/4 bg-gray-200 animate-pulse"></div>
+              <div className="h-5 w-1/4 bg-gray-200 animate-pulse"></div>
+              <div className="h-10 w-full bg-gray-200 animate-pulse"></div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

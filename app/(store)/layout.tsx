@@ -1,16 +1,11 @@
-import type React from "react"
-import { CartProvider } from "@/lib/hooks/use-cart"
-import { Toaster } from "sonner"
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { ReactNode } from "react";
 
-export default function StoreLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
-  return (
-    <CartProvider>
-      {children}
-      <Toaster />
-    </CartProvider>
-  )
+export default async function StoreLayout({ children }: { children: ReactNode }) {
+  const session = await getServerSession(authOptions);
+
+  // No redirigimos aquí, ya que subrutas como /cuenta tienen su propio layout
+  return <>{children}</>;
 }
