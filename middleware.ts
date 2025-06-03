@@ -16,7 +16,15 @@ export default withAuth(
       return NextResponse.next()
     }
 
-    // Proteger otras rutas de admin
+    // Proteger rutas API de admin
+    if (pathname.startsWith("/api/admin")) {
+      if (!token || token.role !== "ADMIN") {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
+      return NextResponse.next()
+    }
+
+    // Proteger otras rutas de admin (páginas)
     if (pathname.startsWith("/admin")) {
       if (!token || token.role !== "ADMIN") {
         return NextResponse.redirect(new URL("/admin/login", req.url))
@@ -61,6 +69,11 @@ export default withAuth(
           return true
         }
 
+        // Para rutas API de admin, requerir token de admin
+        if (pathname.startsWith("/api/admin")) {
+          return !!token && token.role === "ADMIN"
+        }
+
         // Para rutas protegidas (/admin, /cuenta), requerir token
         if (pathname.startsWith("/admin") || pathname.startsWith("/cuenta")) {
           return !!token
@@ -75,8 +88,9 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    // Solo aplicar middleware a rutas que realmente necesitan protección
+    // Aplicar middleware a rutas que necesitan protección
     "/admin/:path*",
     "/cuenta/:path*",
+    "/api/admin/:path*", // ← Añadido para proteger APIs de admin
   ],
 }
