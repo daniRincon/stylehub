@@ -1,58 +1,65 @@
 "use client"
+
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useSession, signOut } from "next-auth/react"
-import { User, Package, MapPin, Shield, Heart, LogOut, Home, ShoppingBag } from "lucide-react"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
+import { User, Package, Heart, MapPin, Shield, Home, ShoppingBag, LogOut } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import LogoutButton from "@/components/auth/logout-button"
-
-// Función para generar iniciales
-const getInitials = (name?: string | null) => {
-  if (!name) return "NN"
-  return name
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
-}
 
 const menuItems = [
   {
-    name: "Mi Perfil",
-    href: "/cuenta/perfil",
+    title: "Mi cuenta",
+    href: "/cuenta",
     icon: User,
+    description: "Información personal y configuración",
+    name: "Mi cuenta",
   },
   {
-    name: "Mis Pedidos",
+    title: "Mis pedidos",
     href: "/cuenta/pedidos",
     icon: Package,
+    description: "Historial de compras y seguimiento",
+    name: "Mis pedidos",
   },
   {
-    name: "Direcciones",
-    href: "/cuenta/direcciones",
-    icon: MapPin,
-  },
-  {
-    name: "Seguridad",
-    href: "/cuenta/seguridad",
-    icon: Shield,
-  },
-  {
-    name: "Lista de Deseos",
+    title: "Lista de deseos",
     href: "/cuenta/lista-deseos",
     icon: Heart,
+    description: "Productos guardados para más tarde",
+    name: "Lista de deseos",
+  },
+  {
+    title: "Direcciones",
+    href: "/cuenta/direcciones",
+    icon: MapPin,
+    description: "Direcciones de envío guardadas",
+    name: "Direcciones",
+  },
+  {
+    title: "Seguridad",
+    href: "/cuenta/seguridad",
+    icon: Shield,
+    description: "Contraseña y configuración de seguridad",
+    name: "Seguridad",
   },
 ]
+
+function getInitials(name: string | null | undefined) {
+  if (!name) return "US"
+  const parts = name.split(" ")
+  const initials = parts.map((part) => part.charAt(0).toUpperCase()).join("")
+  return initials
+}
 
 export default function AccountSidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
 
   const handleSignOut = () => {
-    signOut({ callbackUrl: "/" })
+    // TODO: Implementar la lógica de cierre de sesión
+    console.log("Cerrando sesión...")
   }
 
   return (
@@ -114,16 +121,14 @@ export default function AccountSidebar() {
             </Button>
           </Link>
 
-          {/* Botón de logout */}
-      <div className="space-y-2">
-        <LogoutButton
-          variant="outline"
-          className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-          redirectTo="/"
-          showConfirmDialog={true}
-        >
-          Cerrar sesión
-        </LogoutButton>
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={handleSignOut}
+          >
+            <LogOut className="h-5 w-5 mr-3" />
+            Cerrar Sesión
+          </Button>
         </div>
       </CardContent>
     </Card>
