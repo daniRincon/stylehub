@@ -5,9 +5,6 @@ import CategorySection from "@/components/store/category-section"
 import NewsletterSection from "@/components/store/newsletter-section"
 import FeaturedProducts from "@/components/store/featured-products"
 
-// Forzar renderizado dinámico
-export const dynamic = "force-dynamic"
-
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col">

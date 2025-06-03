@@ -30,12 +30,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Configuración para resolver problemas de client-reference-manifest
-  experimental: {
-    missingSuspenseWithCSRBailout: false,
-  },
-  // Optimización de output
-  output: "standalone",
 }
 
 module.exports = nextConfig
