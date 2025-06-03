@@ -2,11 +2,14 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ["images.unsplash.com", "another-domain.com", "placeholder.svg"],
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "placeholder.svg",
       },
     ],
   },
@@ -22,13 +25,17 @@ const nextConfig = {
     ]
   },
   eslint: {
-    // Permite que el build continúe incluso si hay errores de ESLint
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // Permite que el build continúe incluso si hay errores de TypeScript
     ignoreBuildErrors: true,
   },
+  // Configuración para resolver problemas de client-reference-manifest
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
+  // Optimización de output
+  output: "standalone",
 }
 
 module.exports = nextConfig

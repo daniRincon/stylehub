@@ -1,102 +1,22 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ShoppingBag, Users, DollarSign, Package, TrendingUp, TrendingDown, Edit, Eye, Plus } from "lucide-react"
-import prisma from "@/lib/prisma"
 import { formatPrice } from "@/lib/utils"
 import Link from "next/link"
 import DashboardClient from "./dashboard-client"
 
-// Función para obtener estadísticas del dashboard
-async function getDashboardStats() {
-  try {
-    // Obtener total de ventas (solo pedidos no cancelados)
-    const totalSalesResult = await prisma.order.aggregate({
-      _sum: {
-        total: true,
-      },
-      where: {
-        status: {
-          not: "CANCELLED",
-        },
-      },
-    })
-
-    // Obtener total de pedidos
-    const totalOrders = await prisma.order.count()
-
-    // Obtener total de clientes
-    const totalCustomers = await prisma.customer.count()
-
-    // Obtener total de productos
-    const totalProducts = await prisma.product.count()
-
-    // Obtener pedidos del mes pasado para calcular crecimiento
-    const lastMonth = new Date()
-    lastMonth.setMonth(lastMonth.getMonth() - 1)
-
-    const lastMonthOrders = await prisma.order.count({
-      where: {
-        createdAt: {
-          gte: lastMonth,
-        },
-      },
-    })
-
-    const lastMonthSales = await prisma.order.aggregate({
-      _sum: {
-        total: true,
-      },
-      where: {
-        createdAt: {
-          gte: lastMonth,
-        },
-        status: {
-          not: "CANCELLED",
-        },
-      },
-    })
-
-    // Obtener últimos pedidos
-    const recentOrders = await prisma.order.findMany({
-      take: 5,
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
-        customer: true,
-      },
-    })
-
-    // Calcular porcentajes de crecimiento (simulado)
-    const salesGrowth = lastMonthSales._sum.total
-      ? ((Number(totalSalesResult._sum.total || 0) - Number(lastMonthSales._sum.total)) /
-          Number(lastMonthSales._sum.total)) *
-        100
-      : 0
-
-    const ordersGrowth = lastMonthOrders ? ((totalOrders - lastMonthOrders) / lastMonthOrders) * 100 : 0
-
-    return {
-      totalSales: Number(totalSalesResult._sum.total || 0),
-      totalOrders,
-      totalCustomers,
-      totalProducts,
-      recentOrders,
-      salesGrowth: Math.round(salesGrowth * 10) / 10,
-      ordersGrowth: Math.round(ordersGrowth * 10) / 10,
-    }
-  } catch (error) {
-    console.error("Error obteniendo estadísticas del dashboard:", error)
-    return {
-      totalSales: 0,
-      totalOrders: 0,
-      totalCustomers: 0,
-      totalProducts: 0,
-      recentOrders: [],
-      salesGrowth: 0,
-      ordersGrowth: 0,
-    }
-  }
+// Tipos para las estadísticas
+interface DashboardStats {
+  totalSales: number
+  totalOrders: number
+  totalCustomers: number
+  totalProducts: number
+  recentOrders: any[]
+  salesGrowth: number
+  ordersGrowth: number
 }
 
 // Función para mapear estados de la base de datos a español
@@ -112,9 +32,85 @@ function getStatusInSpanish(status: string) {
   return statusMap[status] || status
 }
 
-export default async function AdminDashboard() {
-  const { totalSales, totalOrders, totalCustomers, totalProducts, recentOrders, salesGrowth, ordersGrowth } =
-    await getDashboardStats()
+export default function AdminDashboard() {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalSales: 0,
+    totalOrders: 0,
+    totalCustomers: 0,
+    totalProducts: 0,
+    recentOrders: [],
+    salesGrowth: 0,
+    ordersGrowth: 0,
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function fetchDashboardStats() {
+      try {
+        setLoading(true)
+        const response = await fetch("/api/admin/dashboard-stats")
+
+        if (!response.ok) {
+          throw new Error("Error al cargar estadísticas")
+        }
+
+        const data = await response.json()
+        setStats(data)
+      } catch (err) {
+        console.error("Error fetching dashboard stats:", err)
+        setError("Error al cargar las estadísticas del dashboard")
+        // Usar datos de ejemplo en caso de error
+        setStats({
+          totalSales: 125000,
+          totalOrders: 45,
+          totalCustomers: 32,
+          totalProducts: 18,
+          recentOrders: [],
+          salesGrowth: 12.5,
+          ordersGrowth: 8.3,
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardStats()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-8 w-48 bg-gray-200 animate-pulse rounded mb-2"></div>
+              <div className="h-5 w-32 bg-gray-200 animate-pulse rounded"></div>
+            </div>
+            <div className="flex gap-2">
+              <div className="h-10 w-32 bg-gray-200 animate-pulse rounded"></div>
+              <div className="h-10 w-40 bg-gray-200 animate-pulse rounded"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards Loading */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-2">
+                <div className="h-4 w-24 bg-gray-200 rounded"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 w-32 bg-gray-200 rounded mb-2"></div>
+                <div className="h-4 w-40 bg-gray-200 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -138,6 +134,13 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-yellow-800">{error}</p>
+          <p className="text-sm text-yellow-600 mt-1">Mostrando datos de ejemplo</p>
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <Card className="hover:shadow-lg transition-shadow">
@@ -146,15 +149,15 @@ export default async function AdminDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPrice(totalSales)}</div>
+            <div className="text-2xl font-bold">{formatPrice(stats.totalSales)}</div>
             <p className="text-xs text-muted-foreground flex items-center">
-              {salesGrowth >= 0 ? (
+              {stats.salesGrowth >= 0 ? (
                 <TrendingUp className="mr-1 h-4 w-4 text-green-500" />
               ) : (
                 <TrendingDown className="mr-1 h-4 w-4 text-red-500" />
               )}
-              {salesGrowth >= 0 ? "+" : ""}
-              {salesGrowth}% desde el mes pasado
+              {stats.salesGrowth >= 0 ? "+" : ""}
+              {stats.salesGrowth}% desde el mes pasado
             </p>
           </CardContent>
         </Card>
@@ -165,15 +168,15 @@ export default async function AdminDashboard() {
             <ShoppingBag className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalOrders}</div>
+            <div className="text-2xl font-bold">{stats.totalOrders}</div>
             <p className="text-xs text-muted-foreground flex items-center">
-              {ordersGrowth >= 0 ? (
+              {stats.ordersGrowth >= 0 ? (
                 <TrendingUp className="mr-1 h-4 w-4 text-green-500" />
               ) : (
                 <TrendingDown className="mr-1 h-4 w-4 text-red-500" />
               )}
-              {ordersGrowth >= 0 ? "+" : ""}
-              {ordersGrowth}% desde el mes pasado
+              {stats.ordersGrowth >= 0 ? "+" : ""}
+              {stats.ordersGrowth}% desde el mes pasado
             </p>
           </CardContent>
         </Card>
@@ -184,7 +187,7 @@ export default async function AdminDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalCustomers}</div>
+            <div className="text-2xl font-bold">{stats.totalCustomers}</div>
             <p className="text-xs text-muted-foreground flex items-center">
               <TrendingUp className="mr-1 h-4 w-4 text-green-500" />
               Clientes registrados
@@ -198,7 +201,7 @@ export default async function AdminDashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalProducts}</div>
+            <div className="text-2xl font-bold">{stats.totalProducts}</div>
             <p className="text-xs text-muted-foreground flex items-center">
               <TrendingUp className="mr-1 h-4 w-4 text-green-500" />
               En catálogo
@@ -224,7 +227,7 @@ export default async function AdminDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            {recentOrders.length > 0 ? (
+            {stats.recentOrders.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -238,7 +241,7 @@ export default async function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recentOrders.map((order) => (
+                    {stats.recentOrders.map((order) => (
                       <tr key={order.id} className="border-b hover:bg-gray-50 transition-colors">
                         <td className="py-3 px-4 font-medium">{order.id.substring(0, 8)}...</td>
                         <td className="py-3 px-4">{order.customer.name}</td>
