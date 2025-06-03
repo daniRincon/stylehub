@@ -4,21 +4,24 @@ import type React from "react"
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signIn } from "next-auth/react"
+import { signIn, useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
-import { Loader2, CheckCircle, Mail } from "lucide-react"
+import { Loader2, CheckCircle, Mail, AlertCircle } from "lucide-react"
 import StoreHeader from "@/components/store/store-header"
 import StoreFooter from "@/components/store/store-footer"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function RegistroPage() {
   const router = useRouter()
+  const { data: session, status } = useSession()
 
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
   const [registrationSuccess, setRegistrationSuccess] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState("")
   const [formData, setFormData] = useState({
@@ -27,6 +30,9 @@ export default function RegistroPage() {
     password: "",
     confirmPassword: "",
   })
+
+  // Si hay una sesión activa y es un ADMIN, mostrar mensaje
+  const isAdmin = session?.user?.role === "ADMIN"
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -45,6 +51,11 @@ export default function RegistroPage() {
     setIsLoading(true)
 
     try {
+      // Si hay una sesión activa, cerrarla primero
+      if (session) {
+        await signOut({ redirect: false })
+      }
+
       const response = await fetch("/api/register", {
         method: "POST",
         headers: {
@@ -78,18 +89,31 @@ export default function RegistroPage() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true)
     try {
-      const result = await signIn("google", {
+      // Si hay una sesión activa, cerrarla primero
+      if (session) {
+        await signOut({ redirect: false })
+      }
+
+      await signIn("google", {
         callbackUrl: "/cuenta",
       })
-
-      if (result?.error) {
-        toast.error("Error al registrarse con Google")
-      }
     } catch (error) {
       console.error("Error con Google OAuth:", error)
       toast.error("Error al registrarse con Google")
     } finally {
       setIsGoogleLoading(false)
+    }
+  }
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true)
+    try {
+      await signOut({ redirect: false })
+      toast.success("Sesión cerrada correctamente")
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+    } finally {
+      setIsSigningOut(false)
     }
   }
 
@@ -160,6 +184,26 @@ export default function RegistroPage() {
               <h1 className="text-2xl font-bold">Crear una cuenta</h1>
               <p className="text-muted-foreground mt-2">Regístrate para acceder a todas las funciones</p>
             </div>
+
+            {isAdmin && (
+              <Alert variant="warning" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Sesión de administrador activa</AlertTitle>
+                <AlertDescription>
+                  Actualmente tienes una sesión activa como administrador. Puedes cerrar esta sesión antes de
+                  registrarte como cliente.
+                  <div className="mt-2">
+                    <Button variant="outline" size="sm" onClick={handleSignOut} disabled={isSigningOut}>
+                      {isSigningOut ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        "Cerrar sesión de administrador"
+                      )}
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
 
             <div className="bg-white p-6 rounded-lg shadow-md">
               {/* Botón de Google */}

@@ -6,13 +6,26 @@ export default withAuth(
     const token = req.nextauth.token
     const { pathname } = req.nextUrl
 
-    // Permitir acceso libre a páginas de autenticación
+    // Debug en producción
+    console.log("Middleware - Pathname:", pathname)
+    console.log("Middleware - Token exists:", !!token)
+    console.log("Middleware - Token role:", token?.role)
+
+    // Permitir acceso libre a páginas de autenticación de admin
+    // Ya no redirigimos automáticamente si ya está autenticado
     if (pathname === "/admin/login" || pathname === "/admin/register") {
-      // Si ya está autenticado como admin, redirigir al dashboard
-      if (token?.role === "ADMIN") {
-        return NextResponse.redirect(new URL("/admin", req.url))
-      }
-      // Si no está autenticado o no es admin, permitir acceso
+      return NextResponse.next()
+    }
+
+    // Permitir acceso libre a páginas de autenticación de cliente
+    // Ya no redirigimos automáticamente si ya está autenticado
+    if (
+      pathname === "/login" ||
+      pathname === "/registro" ||
+      pathname === "/olvide-password" ||
+      pathname.startsWith("/restablecer-password") ||
+      pathname.startsWith("/confirmar-email")
+    ) {
       return NextResponse.next()
     }
 
@@ -39,6 +52,10 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl
 
+        // Debug en producción
+        console.log("Authorized callback - Pathname:", pathname)
+        console.log("Authorized callback - Token exists:", !!token)
+
         // SIEMPRE permitir acceso a estas rutas sin verificación
         const alwaysAllowedRoutes = [
           "/api/",
@@ -48,6 +65,9 @@ export default withAuth(
           "/admin/register",
           "/login",
           "/registro",
+          "/olvide-password",
+          "/restablecer-password",
+          "/confirmar-email",
         ]
 
         if (alwaysAllowedRoutes.some((route) => pathname.startsWith(route))) {
@@ -75,9 +95,13 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    // Solo aplicar middleware a rutas que realmente necesitan protección
-    // Excluir explícitamente las rutas API
-    "/admin/:path*",
-    "/cuenta/:path*",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 }
