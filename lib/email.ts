@@ -11,7 +11,7 @@ export interface EmailTemplate {
 export async function sendEmail({ to, subject, html }: EmailTemplate) {
   try {
     const data = await resend.emails.send({
-      from: "Tu Tienda <noreply@tutienda.com>",
+      from: "<info@stylehub.dev>",
       to: [to],
       subject,
       html,
