@@ -22,13 +22,12 @@ const nextConfig = {
     ]
   },
   eslint: {
+    // Permite que el build continúe incluso si hay errores de ESLint
     ignoreDuringBuilds: true,
   },
   typescript: {
+    // Permite que el build continúe incluso si hay errores de TypeScript
     ignoreBuildErrors: true,
-  },
-  experimental: {
-    esmExternals: "loose",
   },
 }
 

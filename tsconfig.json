@@ -5,9 +5,6 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "exactOptionalPropertyTypes": false,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -16,12 +13,13 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "plugins": [
       {
         "name": "next"
       }
     ],
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
     }
