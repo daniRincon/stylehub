@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { writeFile, mkdir } from "fs/promises"
-import { join } from "path"
-import { v4 as uuidv4 } from "uuid"
-import { existsSync } from "fs"
+import { put } from "@vercel/blob"
 
-// POST /api/upload - Subir una imagen
 export async function POST(request: Request) {
   try {
     // Verificar autenticación
@@ -22,7 +18,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No se proporcionó ningún archivo" }, { status: 400 })
     }
 
-    // Validar que sea una imagen
+    // Validar tipo de archivo
     if (!file.type.startsWith("image/")) {
       return NextResponse.json({ error: "El archivo debe ser una imagen" }, { status: 400 })
     }
@@ -32,29 +28,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "El archivo es muy grande (máximo 5MB)" }, { status: 400 })
     }
 
-    // Crear nombre de archivo único
-    const fileExtension = file.name.split(".").pop()
-    const fileName = `${uuidv4()}.${fileExtension}`
+    // Generar nombre único
+    const timestamp = Date.now()
+    const fileName = `product-${timestamp}-${file.name}`
 
-    // Directorio para productos
-    const uploadsDir = join(process.cwd(), "public", "uploads", "products")
+    // Subir a Vercel Blob
+    const blob = await put(fileName, file, {
+      access: "public",
+    })
 
-    // Crear el directorio si no existe
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
-    }
-
-    // Ruta del archivo
-    const filePath = join(uploadsDir, fileName)
-
-    // Escribir el archivo
-    const fileBuffer = await file.arrayBuffer()
-    await writeFile(filePath, Buffer.from(fileBuffer))
-
-    // URL pública para mostrar en el frontend
-    const fileUrl = `/uploads/products/${fileName}`
-
-    return NextResponse.json({ url: fileUrl }, { status: 201 })
+    return NextResponse.json({ url: blob.url }, { status: 201 })
   } catch (error) {
     console.error("Error al subir archivo:", error)
     return NextResponse.json(
@@ -65,10 +48,4 @@ export async function POST(request: Request) {
       { status: 500 },
     )
   }
-}
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
 }

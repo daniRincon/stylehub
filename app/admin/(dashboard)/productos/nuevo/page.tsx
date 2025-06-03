@@ -30,9 +30,11 @@ interface ProductSize {
 export default function NuevoProductoPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploadingImages, setIsUploadingImages] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([])
   const [productSizes, setProductSizes] = useState<ProductSize[]>([])
   const [availableSizes, setAvailableSizes] = useState<string[]>([])
 
@@ -41,7 +43,6 @@ export default function NuevoProductoPage() {
     slug: "",
     description: "",
     price: "",
-    stock: "",
     categoryId: "",
     gender: "UNISEX" as "HOMBRE" | "MUJER" | "UNISEX",
     featured: false,
@@ -92,28 +93,65 @@ export default function NuevoProductoPage() {
     }
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length + selectedImages.length > 4) {
       toast.error("Máximo 4 imágenes permitidas")
       return
     }
 
-    setSelectedImages((prev) => [...prev, ...files])
+    setIsUploadingImages(true)
 
-    // Crear previews
-    files.forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setImagePreviews((prev) => [...prev, e.target?.result as string])
+    try {
+      // Subir cada imagen inmediatamente
+      const newImageUrls: string[] = []
+      const newPreviews: string[] = []
+
+      for (const file of files) {
+        // Crear preview
+        const reader = new FileReader()
+        const previewPromise = new Promise<string>((resolve) => {
+          reader.onload = (e) => resolve(e.target?.result as string)
+          reader.readAsDataURL(file)
+        })
+        const preview = await previewPromise
+        newPreviews.push(preview)
+
+        // Subir archivo
+        const uploadFormData = new FormData()
+        uploadFormData.append("file", file)
+
+        const uploadResponse = await fetch("/api/upload", {
+          method: "POST",
+          body: uploadFormData,
+        })
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json()
+          throw new Error(errorData.error || "Error al subir imagen")
+        }
+
+        const uploadData = await uploadResponse.json()
+        newImageUrls.push(uploadData.url)
       }
-      reader.readAsDataURL(file)
-    })
+
+      setSelectedImages((prev) => [...prev, ...files])
+      setImagePreviews((prev) => [...prev, ...newPreviews])
+      setUploadedImageUrls((prev) => [...prev, ...newImageUrls])
+
+      toast.success(`${files.length} imagen(es) subida(s) exitosamente`)
+    } catch (error: any) {
+      console.error("Error al subir imágenes:", error)
+      toast.error(error.message || "Error al subir imágenes")
+    } finally {
+      setIsUploadingImages(false)
+    }
   }
 
   const removeImage = (index: number) => {
     setSelectedImages((prev) => prev.filter((_, i) => i !== index))
     setImagePreviews((prev) => prev.filter((_, i) => i !== index))
+    setUploadedImageUrls((prev) => prev.filter((_, i) => i !== index))
   }
 
   const updateSizeStock = (size: string, stock: number) => {
@@ -131,32 +169,13 @@ export default function NuevoProductoPage() {
         return
       }
 
-      if (selectedImages.length === 0) {
+      if (uploadedImageUrls.length === 0) {
         toast.error("Debes subir al menos una imagen")
         return
       }
 
       // Calcular stock total
       const totalStock = productSizes.reduce((sum, ps) => sum + ps.stock, 0)
-
-      // Subir imágenes
-      const imageUrls: string[] = []
-      for (const image of selectedImages) {
-        const formData = new FormData()
-        formData.append("file", image)
-
-        const uploadResponse = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        })
-
-        if (!uploadResponse.ok) {
-          throw new Error("Error al subir imagen")
-        }
-
-        const uploadData = await uploadResponse.json()
-        imageUrls.push(uploadData.url)
-      }
 
       // Crear producto
       const productData = {
@@ -168,7 +187,7 @@ export default function NuevoProductoPage() {
         categoryId: formData.categoryId,
         gender: formData.gender,
         featured: formData.featured,
-        images: imageUrls,
+        images: uploadedImageUrls,
         sizes: productSizes.filter((ps) => ps.stock > 0), // Solo tallas con stock
       }
 
@@ -381,14 +400,23 @@ export default function NuevoProductoPage() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="images">Subir imágenes (máximo 4)</Label>
-                <Input
-                  id="images"
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  disabled={selectedImages.length >= 4}
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="images"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    disabled={selectedImages.length >= 4 || isUploadingImages}
+                    className="flex-1"
+                  />
+                  {isUploadingImages && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Subiendo...
+                    </div>
+                  )}
+                </div>
               </div>
 
               {imagePreviews.length > 0 && (
@@ -409,6 +437,11 @@ export default function NuevoProductoPage() {
                       >
                         <X className="h-4 w-4" />
                       </Button>
+                      <div className="absolute bottom-2 left-2">
+                        <Badge variant="secondary" className="text-xs">
+                          ✓ Subida
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -422,7 +455,7 @@ export default function NuevoProductoPage() {
           <Button type="button" variant="outline" onClick={() => router.push("/admin/productos")}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isLoading}>
+          <Button type="submit" disabled={isLoading || isUploadingImages}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
