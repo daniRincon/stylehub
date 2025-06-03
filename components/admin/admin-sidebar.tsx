@@ -73,7 +73,7 @@ export default function AdminSidebar() {
 
       <div className="p-4 border-t border-gray-700">
         <Link
-          href="/"
+          href="/admin/login"
           className="flex items-center gap-3 px-3 py-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
         >
           <LogOut className="h-5 w-5" />

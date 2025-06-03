@@ -6,6 +6,7 @@ import { User, Package, MapPin, Shield, Heart, LogOut, Home, ShoppingBag } from 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import LogoutButton from "@/components/auth/logout-button"
 
 // Función para generar iniciales
 const getInitials = (name?: string | null) => {
@@ -113,14 +114,16 @@ export default function AccountSidebar() {
             </Button>
           </Link>
 
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-            onClick={handleSignOut}
-          >
-            <LogOut className="h-5 w-5 mr-3" />
-            Cerrar Sesión
-          </Button>
+          {/* Botón de logout */}
+      <div className="space-y-2">
+        <LogoutButton
+          variant="outline"
+          className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+          redirectTo="/"
+          showConfirmDialog={true}
+        >
+          Cerrar sesión
+        </LogoutButton>
         </div>
       </CardContent>
     </Card>

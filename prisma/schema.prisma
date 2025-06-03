@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,109 +11,202 @@ datasource db {
 }
 
 model User {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
+  email     String   @unique
   name      String
-  email     String     @unique
   password  String
-  role      AdminRole  @default(VENDEDOR)
-  logs      AdminLog[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-}
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-enum AdminRole {
-  ADMIN
-  VENDEDOR
+  @@map("users")
 }
 
 model Customer {
-  id         String        @id @default(uuid())
-  name       String
-  email      String        @unique
-  password   String?
-  phone      String?
-  address    String?
-  city       String?
-  postalCode String?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  orders     Order[]
-  reviews    Review[]
-  wishlist   Wishlist[]
-  notifications Notification[]
+  id                String    @id @default(cuid())
+  email             String    @unique
+  name              String
+  password          String
+  emailVerified     DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relaciones
+  orders            Order[]
+  reviews           Review[]
+  addresses         Address[]
+  wishlistItems     WishlistItem[]
+
+  @@map("customers")
 }
 
 model Category {
-  id             String          @id @default(cuid())
-  name           String
-  slug           String          @unique
-  image          String?
-  description    String?
-  products       Product[]
-  categoryImages CategoryImage[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-}
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  image       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relaciones
+  products    Product[]
 
-model CategoryImage {
-  id         String   @id @default(cuid())
-  url        String
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
+  @@map("categories")
 }
 
 model Product {
-  id          String        @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
-  slug        String        @unique
+  slug        String   @unique
   description String
-  price       Decimal       @db.Decimal(12, 0)
-  stock       Int           @default(0)
-  featured    Boolean       @default(false)
-  images      ProductImage[]
+  price       Float
+  images      String[]
+  stock       Int      @default(0)
+  featured    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones
   categoryId  String
-  category    Category      @relation(fields: [categoryId], references: [id])
+  category    Category @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
   reviews     Review[]
-  wishlist    Wishlist[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-}
+  wishlistItems WishlistItem[]
 
-model ProductImage {
-  id        String   @id @default(cuid())
-  url       String
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  @@map("products")
 }
 
 model Order {
   id              String      @id @default(cuid())
+  status          OrderStatus @default(PENDING)
+  total           Float
+  subtotal        Float
+  tax             Float       @default(0)
+  shipping        Float       @default(0)
+  paymentMethod   String?
+  paymentStatus   PaymentStatus @default(PENDING)
+  stripePaymentId String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relaciones
   customerId      String
   customer        Customer    @relation(fields: [customerId], references: [id])
   items           OrderItem[]
-  status          OrderStatus @default(PENDING)
-  total           Decimal     @db.Decimal(12, 0)
-  shippingAddress String
-  paymentMethod   String
-  paymentIntentId String?     // Añadido para Stripe
-  payment         Payment?    @relation("OrderPayment")
-  invoice         Invoice?    @relation("OrderInvoice")
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  shippingAddress Address?    @relation(fields: [shippingAddressId], references: [id])
+  shippingAddressId String?
+
+  @@map("orders")
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
+  id        String @id @default(cuid())
+  quantity  Int
+  price     Float
+  
+  // Relaciones
   orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order     Order   @relation(fields: [orderId], references: [id])
   productId String
   product   Product @relation(fields: [productId], references: [id])
-  quantity  Int
-  price     Decimal @db.Decimal(12, 0)
-  size      String? // Añadido para el checkout
+
+  @@map("order_items")
+}
+
+model Address {
+  id       String @id @default(cuid())
+  street   String
+  city     String
+  state    String
+  zipCode  String
+  country  String  @default("Colombia")
+  isDefault Boolean @default(false)
+  
+  // Relaciones
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  orders     Order[]
+
+  @@map("addresses")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int      // 1-5
+  comment   String
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@map("reviews")
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@unique([customerId, productId])
+  @@map("wishlist_items")
+}
+
+// Tabla para tokens de verificación de email y recuperación de contraseña
+model VerificationToken {
+  id         String            @id @default(cuid())
+  identifier String            // Email del usuario
+  token      String            @unique
+  type       VerificationType  @default(EMAIL_VERIFICATION)
+  expires    DateTime
+  createdAt  DateTime          @default(now())
+  used       Boolean           @default(false)
+  usedAt     DateTime?
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Tabla para sesiones de autenticación (NextAuth)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+
+  @@map("sessions")
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 enum OrderStatus {
@@ -119,67 +215,17 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
-  PAID        // Añadido para pagos con Stripe
+  PAID  // Mantenemos PAID para evitar conflictos
 }
 
-model Payment {
-  id         String   @id @default(cuid())
-  orderId    String   @unique
-  order      Order    @relation("OrderPayment", fields: [orderId], references: [id])
-  method     String
-  status     String
-  paidAt     DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
 }
 
-model Invoice {
-  id          String   @id @default(cuid())
-  orderId     String   @unique
-  order       Order    @relation("OrderInvoice", fields: [orderId], references: [id])
-  invoiceDate DateTime @default(now())
-  totalAmount Decimal  @db.Decimal(12, 0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Review {
-  id         String   @id @default(cuid())
-  rating     Int
-  comment    String?
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
-
-model Wishlist {
-  id         String   @id @default(cuid())
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
-  productId  String
-  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
-}
-
-model Notification {
-  id          String   @id @default(cuid())
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id])
-  title       String
-  message     String
-  isRead      Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model AdminLog {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  action    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum VerificationType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
 }

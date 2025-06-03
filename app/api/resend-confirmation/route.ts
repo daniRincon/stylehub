@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server"
-import bcrypt from "bcryptjs"
 import { v4 as uuidv4 } from "uuid"
 import prisma from "@/lib/prisma"
 import { Resend } from "resend"
@@ -8,40 +7,32 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password } = await request.json()
+    const { email } = await request.json()
 
-    // Validaciones básicas
-    if (!name || !email || !password) {
-      return NextResponse.json({ error: "Todos los campos son obligatorios" }, { status: 400 })
+    if (!email) {
+      return NextResponse.json({ error: "El correo electrónico es obligatorio" }, { status: 400 })
     }
 
-    if (password.length < 6) {
-      return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 })
-    }
-
-    // Verificar si el email ya está registrado
-    const existingCustomer = await prisma.customer.findUnique({
+    // Verificar si el cliente existe
+    const customer = await prisma.customer.findUnique({
       where: { email: email.toLowerCase() },
     })
 
-    if (existingCustomer) {
-      return NextResponse.json({ error: "Este correo electrónico ya está registrado" }, { status: 400 })
+    if (!customer) {
+      return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 })
     }
 
-    // Hashear la contraseña
-    const hashedPassword = await bcrypt.hash(password, 12)
+    // Si ya está verificado, no es necesario reenviar
+    if (customer.emailVerified) {
+      return NextResponse.json({ message: "El correo ya está verificado" }, { status: 200 })
+    }
 
-    // Crear el cliente
-    const customer = await prisma.customer.create({
-      data: {
-        name,
-        email: email.toLowerCase(),
-        password: hashedPassword,
-        emailVerified: null, // Inicialmente no verificado
-      },
+    // Eliminar tokens anteriores
+    await prisma.verificationToken.deleteMany({
+      where: { identifier: email.toLowerCase() },
     })
 
-    // Crear token de verificación (expira en 24 horas)
+    // Crear nuevo token
     const token = uuidv4()
     const expires = new Date()
     expires.setHours(expires.getHours() + 24)
@@ -50,7 +41,6 @@ export async function POST(request: NextRequest) {
       data: {
         identifier: email.toLowerCase(),
         token,
-        type: "EMAIL_VERIFICATION",
         expires,
       },
     })
@@ -67,8 +57,8 @@ export async function POST(request: NextRequest) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #333;">Confirma tu correo electrónico</h1>
-          <p>Hola ${name},</p>
-          <p>Gracias por registrarte en nuestra tienda. Para completar tu registro, por favor confirma tu correo electrónico haciendo clic en el siguiente enlace:</p>
+          <p>Hola ${customer.name},</p>
+          <p>Has solicitado un nuevo enlace para confirmar tu correo electrónico. Por favor haz clic en el siguiente enlace:</p>
           <p>
             <a 
               href="${confirmationUrl}" 
@@ -77,16 +67,16 @@ export async function POST(request: NextRequest) {
               Confirmar mi correo electrónico
             </a>
           </p>
-          <p>Si no has creado una cuenta, puedes ignorar este mensaje.</p>
+          <p>Si no has solicitado este enlace, puedes ignorar este mensaje.</p>
           <p>El enlace expirará en 24 horas.</p>
           <p>El equipo de la tienda</p>
         </div>
       `,
     })
 
-    return NextResponse.json({ success: true, message: "Usuario registrado correctamente" }, { status: 201 })
+    return NextResponse.json({ success: true, message: "Correo de confirmación reenviado" }, { status: 200 })
   } catch (error) {
-    console.error("Error al registrar usuario:", error)
-    return NextResponse.json({ error: "Error al registrar usuario" }, { status: 500 })
+    console.error("Error al reenviar confirmación:", error)
+    return NextResponse.json({ error: "Error al reenviar confirmación" }, { status: 500 })
   }
 }
