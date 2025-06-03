@@ -7,7 +7,9 @@
       "@next/next/no-img-element": "warn",
       "@next/next/no-html-link-for-pages": "warn",
       "@next/next/no-async-client-component": "warn",
-      "react-hooks/exhaustive-deps": "warn"
+      "react-hooks/exhaustive-deps": "warn",
+      "prefer-const": "warn",
+      "no-unused-vars": "warn"
     }
   }
   
