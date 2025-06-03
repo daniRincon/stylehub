@@ -76,7 +76,7 @@ export default function CategoriasPage() {
       formData.append('type', 'category')
       formData.append('id', selectedCategory)
 
-      const { data: uploadData } = await axios.post('/api/upload', formData, {
+      const { data: uploadData } = await axios.post('/api/upload-blob', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       const imageUrl = uploadData.url
