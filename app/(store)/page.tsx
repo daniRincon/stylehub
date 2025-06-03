@@ -5,6 +5,9 @@ import CategorySection from "@/components/store/category-section"
 import NewsletterSection from "@/components/store/newsletter-section"
 import FeaturedProducts from "@/components/store/featured-products"
 
+// Forzar renderizado dinámico
+export const dynamic = "force-dynamic"
+
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col">
@@ -17,9 +20,7 @@ export default function HomePage() {
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold mb-2">Productos Destacados</h2>
-              <p className="text-muted-foreground">
-                Descubre nuestra selección de productos destacados
-              </p>
+              <p className="text-muted-foreground">Descubre nuestra selección de productos destacados</p>
             </div>
             <FeaturedProducts />
           </div>
@@ -27,19 +28,17 @@ export default function HomePage() {
 
         <CategorySection />
 
-        <section className="py-16 bg-white">
+        <section className="py-16 bg-cream">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold mb-2">¿Por qué elegirnos?</h2>
-              <p className="text-muted-foreground">
-                Descubre por qué somos la mejor opción para tus compras
-              </p>
+              <p className="text-muted-foreground">Descubre por qué somos la mejor opción para tus compras</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Envío Gratis */}
               <div className="text-center">
-                <div className="bg-cream rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4">
+                <div className="bg-white rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4 shadow-sm">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="text-gold"
@@ -59,14 +58,12 @@ export default function HomePage() {
                   </svg>
                 </div>
                 <h3 className="text-xl font-bold mb-2">Envío Gratis</h3>
-                <p className="text-muted-foreground">
-                  En todos los pedidos superiores a $50
-                </p>
+                <p className="text-muted-foreground">En todos los pedidos superiores a $50</p>
               </div>
 
               {/* Calidad Garantizada */}
               <div className="text-center">
-                <div className="bg-cream rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4">
+                <div className="bg-white rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4 shadow-sm">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="text-gold"
@@ -83,14 +80,12 @@ export default function HomePage() {
                   </svg>
                 </div>
                 <h3 className="text-xl font-bold mb-2">Calidad Garantizada</h3>
-                <p className="text-muted-foreground">
-                  Productos de la más alta calidad
-                </p>
+                <p className="text-muted-foreground">Productos de la más alta calidad</p>
               </div>
 
               {/* Compra Segura */}
               <div className="text-center">
-                <div className="bg-cream rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4">
+                <div className="bg-white rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4 shadow-sm">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="text-gold"
@@ -107,9 +102,7 @@ export default function HomePage() {
                   </svg>
                 </div>
                 <h3 className="text-xl font-bold mb-2">Compra Segura</h3>
-                <p className="text-muted-foreground">
-                  Transacciones 100% seguras
-                </p>
+                <p className="text-muted-foreground">Transacciones 100% seguras</p>
               </div>
             </div>
           </div>
