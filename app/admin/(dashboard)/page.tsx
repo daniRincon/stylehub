@@ -19,6 +19,17 @@ interface DashboardStats {
   ordersGrowth: number
 }
 
+// Datos de respaldo en caso de error
+const fallbackData: DashboardStats = {
+  totalSales: 125000,
+  totalOrders: 45,
+  totalCustomers: 32,
+  totalProducts: 18,
+  recentOrders: [],
+  salesGrowth: 12.5,
+  ordersGrowth: 8.3,
+}
+
 // Función para mapear estados de la base de datos a español
 function getStatusInSpanish(status: string) {
   const statusMap: { [key: string]: string } = {
@@ -33,15 +44,7 @@ function getStatusInSpanish(status: string) {
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalSales: 0,
-    totalOrders: 0,
-    totalCustomers: 0,
-    totalProducts: 0,
-    recentOrders: [],
-    salesGrowth: 0,
-    ordersGrowth: 0,
-  })
+  const [stats, setStats] = useState<DashboardStats>(fallbackData)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -49,27 +52,28 @@ export default function AdminDashboard() {
     async function fetchDashboardStats() {
       try {
         setLoading(true)
-        const response = await fetch("/api/admin/dashboard-stats")
+        const response = await fetch("/api/admin/dashboard-stats", {
+          // Añadir credenciales para asegurar que se envíen las cookies
+          credentials: "include",
+          // Evitar caché
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+          },
+        })
 
         if (!response.ok) {
-          throw new Error("Error al cargar estadísticas")
+          console.error("Error de API:", response.status, response.statusText)
+          throw new Error(`Error al cargar estadísticas: ${response.status}`)
         }
 
         const data = await response.json()
         setStats(data)
+        setError(null)
       } catch (err) {
         console.error("Error fetching dashboard stats:", err)
-        setError("Error al cargar las estadísticas del dashboard")
-        // Usar datos de ejemplo en caso de error
-        setStats({
-          totalSales: 125000,
-          totalOrders: 45,
-          totalCustomers: 32,
-          totalProducts: 18,
-          recentOrders: [],
-          salesGrowth: 12.5,
-          ordersGrowth: 8.3,
-        })
+        setError("Error al cargar las estadísticas del dashboard. Usando datos de ejemplo.")
+        // Mantener los datos de respaldo
       } finally {
         setLoading(false)
       }
@@ -227,7 +231,7 @@ export default function AdminDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            {stats.recentOrders.length > 0 ? (
+            {stats.recentOrders && stats.recentOrders.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -244,7 +248,7 @@ export default function AdminDashboard() {
                     {stats.recentOrders.map((order) => (
                       <tr key={order.id} className="border-b hover:bg-gray-50 transition-colors">
                         <td className="py-3 px-4 font-medium">{order.id.substring(0, 8)}...</td>
-                        <td className="py-3 px-4">{order.customer.name}</td>
+                        <td className="py-3 px-4">{order.customer?.name || "Cliente"}</td>
                         <td className="py-3 px-4">{new Date(order.createdAt).toLocaleDateString("es-ES")}</td>
                         <td className="py-3 px-4">
                           <span

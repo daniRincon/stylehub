@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/lib/auth"
 
 export async function GET() {
   try {
+    // Verificar autenticación directamente en la ruta API
+    const session = await getServerSession(authOptions)
+
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
     // Obtener total de ventas (solo pedidos no cancelados)
     const totalSalesResult = await prisma.order.aggregate({
       _sum: {
