@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { useCart } from "@/lib/hooks/use-cart"
 import { formatPrice } from "@/lib/utils"
 import type { Product } from "@/lib/types"
+import type { CartItem } from "@/lib/hooks/use-cart"
 import Image from "next/image"
 
 interface ProductDetailsProps {
@@ -29,10 +30,11 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
 
   const { addItem } = useCart()
 
-  // Debug logs
-  console.log("ProductDetails - Product:", product)
-  console.log("ProductDetails - Product ID:", product.id)
-  console.log("ProductDetails - Product stock:", product.stock)
+  // Debug logs CRÍTICOS
+  console.log("🔍 ProductDetails - FULL Product object:", product)
+  console.log("🔍 ProductDetails - Product ID:", product.id)
+  console.log("🔍 ProductDetails - Product ID type:", typeof product.id)
+  console.log("🔍 ProductDetails - Product keys:", Object.keys(product))
 
   // Función para obtener la URL de imagen optimizada
   const getImageUrl = (imageUrl: string) => {
@@ -97,23 +99,17 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
 
   // Actualizar stock disponible cuando cambie la talla seleccionada
   useEffect(() => {
-    console.log("Size stocks:", sizeStocks)
-    console.log("Selected size:", selectedSize)
-
     if (sizeStocks.length > 0) {
       if (selectedSize) {
         const sizeStock = sizeStocks.find((s) => s.size === selectedSize)
         const stock = sizeStock?.stock || 0
-        console.log("Stock for selected size:", stock)
         setAvailableStock(stock)
       } else if (sizeStocks.length === 1 && sizeStocks[0].size === null) {
         // Producto sin tallas
         const stock = sizeStocks[0].stock
-        console.log("Stock for product without sizes:", stock)
         setAvailableStock(stock)
       } else {
         // Si hay tallas pero no se ha seleccionado ninguna
-        console.log("Has sizes but none selected, setting stock to 0")
         setAvailableStock(0)
       }
     }
@@ -132,15 +128,15 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
   }
 
   const handleAddToCart = () => {
-    console.log("=== HANDLE ADD TO CART START ===")
-    console.log("Product object:", product)
-    console.log("Product ID:", product.id)
-    console.log("Available stock:", availableStock)
-    console.log("Selected size:", selectedSize)
+    console.log("🚨 === CRITICAL DEBUG START ===")
+    console.log("🚨 Product object at start of handleAddToCart:", product)
+    console.log("🚨 Product.id:", product.id)
+    console.log("🚨 Product.id type:", typeof product.id)
+    console.log("🚨 Product.id exists:", !!product.id)
 
     // Verificar que tenemos un productId válido
     if (!product.id) {
-      console.error("Product ID is missing or invalid:", product.id)
+      console.error("❌ Product ID is missing or invalid:", product.id)
       toast.error("Error: ID del producto no válido")
       return
     }
@@ -150,10 +146,6 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
     // Verificar si necesita talla
     const needsSize = categorySlug !== "gorras" && categorySlug !== "accesorios"
     const hasSizes = sizeStocks.some((s) => s.size !== null)
-
-    console.log("Category slug:", categorySlug)
-    console.log("Needs size:", needsSize)
-    console.log("Has sizes:", hasSizes)
 
     if (needsSize && hasSizes && !selectedSize) {
       toast.error("Por favor selecciona una talla")
@@ -171,10 +163,14 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
     // Crear ID único para el carrito
     const cartItemId = selectedSize ? `${product.id}-${selectedSize}` : product.id
 
-    // IMPORTANTE: Crear el objeto con TODAS las propiedades requeridas
-    const cartItem = {
+    console.log("🚨 About to create cartItem object...")
+    console.log("🚨 cartItemId:", cartItemId)
+    console.log("🚨 product.id for productId:", product.id)
+
+    // CREAR EL OBJETO CON SINTAXIS CORRECTA
+    const cartItem: CartItem = {
       id: cartItemId,
-      productId: product.id, // ¡ESTA ES LA CLAVE!
+      productId: product.id, // ¡ASIGNACIÓN EXPLÍCITA!
       name: product.name,
       price: product.price,
       image: imageUrl,
@@ -183,25 +179,27 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
       stock: availableStock,
     }
 
-    console.log("=== CART ITEM TO ADD ===")
-    console.log("Cart item object:", cartItem)
-    console.log("Cart item productId:", cartItem.productId)
-    console.log("Cart item keys:", Object.keys(cartItem))
-    console.log("=== END CART ITEM ===")
+    console.log("🚨 === CART ITEM CREATION DEBUG ===")
+    console.log("🚨 cartItem after creation:", cartItem)
+    console.log("🚨 cartItem.productId:", cartItem.productId)
+    console.log("🚨 cartItem keys:", Object.keys(cartItem))
+    console.log("🚨 cartItem.productId exists:", !!cartItem.productId)
+    console.log("🚨 cartItem.productId type:", typeof cartItem.productId)
 
     // Verificar que el objeto tiene productId antes de enviarlo
     if (!cartItem.productId) {
-      console.error("CRITICAL ERROR: cartItem.productId is missing!")
-      console.error("Product object:", product)
-      console.error("Cart item object:", cartItem)
+      console.error("💥 CRITICAL ERROR: cartItem.productId is missing after creation!")
+      console.error("💥 Product object:", product)
+      console.error("💥 Cart item object:", cartItem)
       toast.error("Error crítico: No se puede añadir el producto")
       return
     }
 
-    console.log("Calling addItem with:", cartItem)
+    console.log("🚨 About to call addItem with:", cartItem)
+    console.log("🚨 === CRITICAL DEBUG END ===")
+
     addItem(cartItem)
     toast.success(`${product.name} añadido al carrito`)
-    console.log("=== HANDLE ADD TO CART END ===")
   }
 
   // Renderizar estrellas para la calificación
@@ -228,8 +226,6 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
 
   const categorySlug = getCategorySlug()
   const hasSizes = sizeStocks.some((s) => s.size !== null)
-
-  console.log("Available stock for display:", availableStock)
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -308,17 +304,30 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
           <p className="text-muted-foreground">{product.description}</p>
         </div>
 
-        {/* Debug info */}
-        <div className="mb-4 p-2 bg-gray-50 border rounded text-xs">
+        {/* Debug info CRÍTICO */}
+        <div className="mb-4 p-3 bg-red-50 border-2 border-red-200 rounded text-sm">
+          <p className="font-bold text-red-800">🚨 CRITICAL DEBUG INFO:</p>
           <p>
-            <strong>Debug:</strong>
+            <strong>Product ID:</strong> {product.id || "❌ UNDEFINED"}
           </p>
-          <p>Product ID: {product.id}</p>
-          <p>Product ID type: {typeof product.id}</p>
-          <p>Product ID exists: {product.id ? "YES" : "NO"}</p>
-          <p>Has sizes: {hasSizes ? "Sí" : "No"}</p>
-          <p>Available stock: {availableStock}</p>
-          <p>Selected size: {selectedSize || "Ninguna"}</p>
+          <p>
+            <strong>Product ID type:</strong> {typeof product.id}
+          </p>
+          <p>
+            <strong>Product ID exists:</strong> {product.id ? "✅ YES" : "❌ NO"}
+          </p>
+          <p>
+            <strong>Product keys:</strong> {Object.keys(product).join(", ")}
+          </p>
+          <p>
+            <strong>Has sizes:</strong> {hasSizes ? "Sí" : "No"}
+          </p>
+          <p>
+            <strong>Available stock:</strong> {availableStock}
+          </p>
+          <p>
+            <strong>Selected size:</strong> {selectedSize || "Ninguna"}
+          </p>
         </div>
 
         {/* Selector de tallas */}
@@ -360,10 +369,10 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
           <Button
             onClick={handleAddToCart}
             className="flex-1 bg-dark-green hover:bg-dark-green/90 text-white"
-            disabled={availableStock <= 0}
+            disabled={availableStock <= 0 || !product.id}
           >
             <ShoppingCart className="h-4 w-4 mr-2" />
-            {availableStock > 0 ? "Añadir al carrito" : "Agotado"}
+            {!product.id ? "Error: Sin ID" : availableStock > 0 ? "Añadir al carrito" : "Agotado"}
           </Button>
           <Button variant="outline" size="icon">
             <Heart className="h-4 w-4" />
