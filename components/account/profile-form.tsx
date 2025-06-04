@@ -1,90 +1,72 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+"use client"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
+import { Loader2, Save, User, Mail, Phone, MapPin, Home } from "lucide-react"
 
 const profileSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   email: z.string().email("Email inválido"),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  postalCode: z.string().optional(),
-});
+  phone: z.string().optional().or(z.literal("")),
+  address: z.string().optional().or(z.literal("")),
+  city: z.string().optional().or(z.literal("")),
+  postalCode: z.string().optional().or(z.literal("")),
+})
 
-type ProfileFormData = z.infer<typeof profileSchema>;
+type ProfileFormData = z.infer<typeof profileSchema>
 
-export default function ProfileForm() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<ProfileFormData | null>(null);
-  const router = useRouter();
+interface ProfileFormProps {
+  user: {
+    id: string
+    name: string | null
+    email: string
+    phone: string | null
+    address: string | null
+    city: string | null
+    postalCode: string | null
+  }
+}
+
+export default function ProfileForm({ user }: ProfileFormProps) {
+  const [isLoading, setIsLoading] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
+  const router = useRouter()
+  const { update } = useSession()
 
   const {
     register,
     handleSubmit,
+    watch,
+    formState: { errors, isDirty },
     reset,
-    formState: { errors },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      city: "",
-      postalCode: "",
+      name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+      address: user?.address || "",
+      city: user?.city || "",
+      postalCode: user?.postalCode || "",
     },
-  });
+  })
 
-  // Cargar los datos del usuario desde /api/user/profile al montar el componente
+  // Observar cambios en el formulario
+  const watchedValues = watch()
+
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const response = await fetch("/api/user/profile");
-        if (!response.ok) {
-          throw new Error("Error al cargar el perfil");
-        }
-        const data = await response.json();
-        const user = data.user;
-
-        // Actualizar el estado local con los datos del usuario
-        setCurrentUser({
-          name: user.name || "",
-          email: user.email || "",
-          phone: user.phone || "",
-          address: user.address || "",
-          city: user.city || "",
-          postalCode: user.postalCode || "",
-        });
-
-        // Actualizar los valores predeterminados del formulario
-        reset({
-          name: user.name || "",
-          email: user.email || "",
-          phone: user.phone || "",
-          address: user.address || "",
-          city: user.city || "",
-          postalCode: user.postalCode || "",
-        });
-      } catch (error) {
-        console.error("Error fetching user profile:", error);
-        toast.error("No se pudo cargar tu información de perfil");
-      }
-    };
-
-    fetchUserProfile();
-  }, [reset]);
+    setHasChanges(isDirty)
+  }, [isDirty])
 
   const onSubmit = async (data: ProfileFormData) => {
-    setIsLoading(true);
+    setIsLoading(true)
     try {
       const response = await fetch("/api/user/profile", {
         method: "PUT",
@@ -92,112 +74,165 @@ export default function ProfileForm() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(data),
-      });
+      })
 
-      const result = await response.json();
+      const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || "Error al actualizar el perfil");
+        throw new Error(result.error || "Error al actualizar el perfil")
       }
 
-      // Actualizar el estado local con los datos devueltos
-      setCurrentUser({
-        name: result.user.name,
-        email: result.user.email,
-        phone: result.user.phone || "",
-        address: result.user.address || "",
-        city: result.user.city || "",
-        postalCode: result.user.postalCode || "",
-      });
+      // Actualizar la sesión con los nuevos datos
+      await update({
+        name: data.name,
+        email: data.email,
+      })
 
-      // Actualizar los valores del formulario con los datos devueltos
-      reset({
-        name: result.user.name,
-        email: result.user.email,
-        phone: result.user.phone || "",
-        address: result.user.address || "",
-        city: result.user.city || "",
-        postalCode: result.user.postalCode || "",
-      });
-
-      toast.success("Perfil actualizado correctamente");
-    } catch (error: any) {
-      toast.error(error.message || "No se pudo actualizar el perfil");
+      toast.success("Perfil actualizado correctamente")
+      setHasChanges(false)
+      router.refresh()
+    } catch (error) {
+      console.error("Error updating profile:", error)
+      toast.error(error instanceof Error ? error.message : "No se pudo actualizar el perfil")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
-  // Mostrar un mensaje de carga mientras se obtienen los datos
-  if (!currentUser) {
-    return (
-      <div className="text-center">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gold" />
-        <p>Cargando tu información...</p>
-      </div>
-    );
+  const handleReset = () => {
+    reset()
+    setHasChanges(false)
+    toast.info("Cambios descartados")
   }
 
   return (
-    <div className="space-y-8">
-      {/* Sección de Información Actual */}
-      <div className="p-6 bg-white rounded-lg shadow">
-        <h2 className="text-lg font-semibold mb-4">Información Actual</h2>
-        <div className="space-y-2">
-          <p><strong>Nombre:</strong> {currentUser.name || "No especificado"}</p>
-          <p><strong>Email:</strong> {currentUser.email || "No especificado"}</p>
-          <p><strong>Teléfono:</strong> {currentUser.phone || "No especificado"}</p>
-          <p><strong>Dirección:</strong> {currentUser.address || "No especificado"}</p>
-          <p><strong>Ciudad:</strong> {currentUser.city || "No especificado"}</p>
-          <p><strong>Código Postal:</strong> {currentUser.postalCode || "No especificado"}</p>
-        </div>
-      </div>
-
-      {/* Formulario Editable */}
+    <div className="space-y-6">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Nombre */}
           <div className="space-y-2">
-            <Label htmlFor="name">Nombre completo</Label>
-            <Input id="name" {...register("name")} placeholder="Tu nombre completo" />
-            {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
+            <Label htmlFor="name" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Nombre completo *
+            </Label>
+            <Input
+              id="name"
+              {...register("name")}
+              placeholder="Tu nombre completo"
+              className={errors.name ? "border-red-500" : ""}
+            />
+            {errors.name && <p className="text-sm text-red-600 flex items-center gap-1">{errors.name.message}</p>}
           </div>
 
+          {/* Email */}
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" {...register("email")} placeholder="tu@email.com" />
-            {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
+            <Label htmlFor="email" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email *
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              {...register("email")}
+              placeholder="tu@email.com"
+              className={errors.email ? "border-red-500" : ""}
+            />
+            {errors.email && <p className="text-sm text-red-600 flex items-center gap-1">{errors.email.message}</p>}
           </div>
 
+          {/* Teléfono */}
           <div className="space-y-2">
-            <Label htmlFor="phone">Teléfono</Label>
-            <Input id="phone" {...register("phone")} placeholder="+57 300 123 4567" />
-            {errors.phone && <p className="text-sm text-red-600">{errors.phone.message}</p>}
+            <Label htmlFor="phone" className="flex items-center gap-2">
+              <Phone className="h-4 w-4" />
+              Teléfono
+            </Label>
+            <Input
+              id="phone"
+              {...register("phone")}
+              placeholder="+57 300 123 4567"
+              className={errors.phone ? "border-red-500" : ""}
+            />
+            {errors.phone && <p className="text-sm text-red-600 flex items-center gap-1">{errors.phone.message}</p>}
           </div>
 
+          {/* Ciudad */}
           <div className="space-y-2">
-            <Label htmlFor="city">Ciudad</Label>
-            <Input id="city" {...register("city")} placeholder="Tu ciudad" />
-            {errors.city && <p className="text-sm text-red-600">{errors.city.message}</p>}
+            <Label htmlFor="city" className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Ciudad
+            </Label>
+            <Input
+              id="city"
+              {...register("city")}
+              placeholder="Tu ciudad"
+              className={errors.city ? "border-red-500" : ""}
+            />
+            {errors.city && <p className="text-sm text-red-600 flex items-center gap-1">{errors.city.message}</p>}
           </div>
 
+          {/* Dirección */}
           <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="address">Dirección</Label>
-            <Input id="address" {...register("address")} placeholder="Tu dirección completa" />
-            {errors.address && <p className="text-sm text-red-600">{errors.address.message}</p>}
+            <Label htmlFor="address" className="flex items-center gap-2">
+              <Home className="h-4 w-4" />
+              Dirección
+            </Label>
+            <Input
+              id="address"
+              {...register("address")}
+              placeholder="Tu dirección completa"
+              className={errors.address ? "border-red-500" : ""}
+            />
+            {errors.address && <p className="text-sm text-red-600 flex items-center gap-1">{errors.address.message}</p>}
           </div>
 
+          {/* Código postal */}
           <div className="space-y-2">
             <Label htmlFor="postalCode">Código postal</Label>
-            <Input id="postalCode" {...register("postalCode")} placeholder="110111" />
-            {errors.postalCode && <p className="text-sm text-red-600">{errors.postalCode.message}</p>}
+            <Input
+              id="postalCode"
+              {...register("postalCode")}
+              placeholder="110111"
+              className={errors.postalCode ? "border-red-500" : ""}
+            />
+            {errors.postalCode && (
+              <p className="text-sm text-red-600 flex items-center gap-1">{errors.postalCode.message}</p>
+            )}
           </div>
         </div>
 
-        <Button type="submit" disabled={isLoading} className="bg-gold hover:bg-gold/90">
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Guardar cambios
-        </Button>
+        {/* Botones de acción */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+          <Button
+            type="submit"
+            disabled={isLoading || !hasChanges}
+            className="bg-gold hover:bg-gold/90 flex-1 sm:flex-none"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Guardar cambios
+              </>
+            )}
+          </Button>
+
+          {hasChanges && (
+            <Button type="button" variant="outline" onClick={handleReset} disabled={isLoading}>
+              Descartar cambios
+            </Button>
+          )}
+        </div>
+
+        {hasChanges && (
+          <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
+            Tienes cambios sin guardar. No olvides hacer clic en "Guardar cambios".
+          </div>
+        )}
       </form>
     </div>
-  );
+  )
 }
