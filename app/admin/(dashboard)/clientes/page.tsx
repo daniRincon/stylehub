@@ -32,51 +32,61 @@ async function getCustomers(searchParams: SearchParams) {
     }),
   }
 
-  const [customers, total] = await Promise.all([
-    prisma.customer.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        emailVerified: true,
-        createdAt: true,
-        _count: {
-          select: {
-            orders: true,
-            reviews: true,
+  try {
+    const [customers, total] = await Promise.all([
+      prisma.customer.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          emailVerified: true,
+          createdAt: true,
+          _count: {
+            select: {
+              orders: true,
+              reviews: true,
+            },
+          },
+          addresses: {
+            where: { isDefault: true },
+            select: {
+              city: true,
+              state: true,
+            },
+            take: 1,
           },
         },
-        addresses: {
-          where: { isDefault: true },
-          select: {
-            city: true,
-            state: true,
-          },
-          take: 1,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: limit,
-    }),
-    prisma.customer.count({ where }),
-  ])
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.customer.count({ where }),
+    ])
 
-  return {
-    customers: customers.map((customer) => ({
-      ...customer,
-      address:
-        customer.addresses[0]?.city && customer.addresses[0]?.state
-          ? `${customer.addresses[0].city}, ${customer.addresses[0].state}`
-          : "No registrada",
-      city: customer.addresses[0]?.city || "No registrada",
-      postalCode: "N/A", // Este campo no existe en el modelo actual
-    })),
-    total,
-    pages: Math.ceil(total / limit),
-    currentPage: page,
+    return {
+      customers: customers.map((customer) => ({
+        ...customer,
+        address:
+          customer.addresses[0]?.city && customer.addresses[0]?.state
+            ? `${customer.addresses[0].city}, ${customer.addresses[0].state}`
+            : "No registrada",
+        city: customer.addresses[0]?.city || "No registrada",
+        postalCode: "N/A",
+      })),
+      total,
+      pages: Math.ceil(total / limit),
+      currentPage: page,
+    }
+  } catch (error) {
+    console.error("Error fetching customers:", error)
+    return {
+      customers: [],
+      total: 0,
+      pages: 0,
+      currentPage: 1,
+    }
   }
 }
 
@@ -171,69 +181,75 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
           <CardDescription>{total} clientes registrados</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Contacto</TableHead>
-                <TableHead>Ubicación</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Pedidos</TableHead>
-                <TableHead>Registro</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{customer.name}</div>
-                      <div className="text-sm text-muted-foreground">{customer.email}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center text-sm">
-                        <Mail className="h-3 w-3 mr-1" />
-                        {customer.email}
-                      </div>
-                      {customer.phone && (
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Phone className="h-3 w-3 mr-1" />
-                          {customer.phone}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">{customer.address}</div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={customer.emailVerified ? "default" : "secondary"}>
-                      {customer.emailVerified ? "Verificado" : "Sin verificar"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-center">
-                      <div className="font-medium">{customer._count.orders}</div>
-                      <div className="text-xs text-muted-foreground">pedidos</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">{formatDate(customer.createdAt)}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {customers.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">No hay clientes registrados</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Contacto</TableHead>
+                  <TableHead>Ubicación</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Pedidos</TableHead>
+                  <TableHead>Registro</TableHead>
+                  <TableHead>Acciones</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {customers.map((customer) => (
+                  <TableRow key={customer.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{customer.name}</div>
+                        <div className="text-sm text-muted-foreground">{customer.email}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center text-sm">
+                          <Mail className="h-3 w-3 mr-1" />
+                          {customer.email}
+                        </div>
+                        {customer.phone && (
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Phone className="h-3 w-3 mr-1" />
+                            {customer.phone}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{customer.address}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={customer.emailVerified ? "default" : "secondary"}>
+                        {customer.emailVerified ? "Verificado" : "Sin verificar"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-center">
+                        <div className="font-medium">{customer._count.orders}</div>
+                        <div className="text-xs text-muted-foreground">pedidos</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{formatDate(customer.createdAt)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
