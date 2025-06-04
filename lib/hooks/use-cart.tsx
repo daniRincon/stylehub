@@ -12,6 +12,7 @@ export interface CartItem {
   size?: string
   quantity: number
   stock: number
+  slug?: string
 }
 
 interface CartState {
@@ -74,6 +75,7 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
         size: action.payload.size,
         quantity: action.payload.quantity || 1,
         stock: action.payload.stock,
+        slug: action.payload.slug,
       }
 
       console.log("✅ Creating new cart item:", newItem)

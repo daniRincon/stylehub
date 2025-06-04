@@ -16,7 +16,7 @@ import StoreFooter from "@/components/store/store-footer"
 import Image from "next/image"
 
 interface SizeStock {
-  size: string | null
+  size: string
   stock: number
 }
 
@@ -31,14 +31,14 @@ interface ProductStockInfo {
 export default function CartPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
-  const { items, removeItem, updateItemQuantity, updateItemStock, clearCart, getTotalPrice } = useCart()
+  const { items, removeItem, updateItemQuantity, clearCart, getTotalPrice } = useCart()
   const [isCheckingOut, setIsCheckingOut] = useState(false)
   const [productStocks, setProductStocks] = useState<ProductStockInfo>({})
   const [isValidatingStock, setIsValidatingStock] = useState(false)
 
   // Debug: Log del estado del carrito
-  console.log("Cart page - All items:", items)
-  console.log("Cart page - Items length:", items.length)
+  console.log("🛒 Cart page - All items:", items)
+  console.log("🛒 Cart page - Items length:", items.length)
 
   // Limpiar items inválidos del carrito
   useEffect(() => {
@@ -129,14 +129,11 @@ export default function CartPage() {
             console.log(`Total stock for ${item.productId}:`, availableStock)
           }
 
-          // Solo actualizar si el stock es diferente al actual
-          if (item.stock !== availableStock) {
-            console.log(`Updating stock for item ${item.id} from ${item.stock} to ${availableStock}`)
-            updateItemStock(item.id, availableStock)
-
-            if (item.quantity > availableStock && availableStock > 0) {
-              toast.warning(`Stock actualizado para ${item.name}${item.size ? ` (${item.size})` : ""}`)
-            }
+          // Si la cantidad excede el stock disponible, ajustarla
+          if (item.quantity > availableStock && availableStock > 0) {
+            console.log(`Adjusting quantity for item ${item.id} from ${item.quantity} to ${availableStock}`)
+            updateItemQuantity(item.id, availableStock)
+            toast.warning(`Cantidad ajustada para ${item.name}${item.size ? ` (${item.size})` : ""}`)
           }
         })
       } catch (error) {
@@ -155,8 +152,23 @@ export default function CartPage() {
     const item = items.find((i) => i.id === id)
     if (!item) return
 
-    if (quantity > item.stock) {
-      toast.error(`Solo hay ${item.stock} unidades disponibles`)
+    // Obtener stock actualizado
+    let maxStock = item.stock
+
+    // Si tenemos datos de stock más recientes, usarlos
+    if (item.productId && productStocks[item.productId]) {
+      const productStock = productStocks[item.productId]
+
+      if (productStock.hasSizes && item.size) {
+        const sizeStock = productStock.sizes.find((s) => s.size === item.size)
+        maxStock = sizeStock?.stock || 0
+      } else if (!productStock.hasSizes) {
+        maxStock = productStock.totalStock
+      }
+    }
+
+    if (quantity > maxStock) {
+      toast.error(`Solo hay ${maxStock} unidades disponibles`)
       return
     }
 
@@ -164,10 +176,39 @@ export default function CartPage() {
   }
 
   const isItemOutOfStock = (item: any) => {
+    // Verificar si tenemos datos de stock actualizados
+    if (item.productId && productStocks[item.productId]) {
+      const productStock = productStocks[item.productId]
+
+      if (productStock.hasSizes && item.size) {
+        const sizeStock = productStock.sizes.find((s) => s.size === item.size)
+        return (sizeStock?.stock || 0) === 0
+      } else if (!productStock.hasSizes) {
+        return productStock.totalStock === 0
+      }
+    }
+
+    // Si no tenemos datos actualizados, usar el stock del item
     return item.stock === 0
   }
 
   const isQuantityExceedsStock = (item: any) => {
+    // Verificar si tenemos datos de stock actualizados
+    if (item.productId && productStocks[item.productId]) {
+      const productStock = productStocks[item.productId]
+
+      let availableStock = 0
+      if (productStock.hasSizes && item.size) {
+        const sizeStock = productStock.sizes.find((s) => s.size === item.size)
+        availableStock = sizeStock?.stock || 0
+      } else if (!productStock.hasSizes) {
+        availableStock = productStock.totalStock
+      }
+
+      return item.quantity > availableStock && availableStock > 0
+    }
+
+    // Si no tenemos datos actualizados, usar el stock del item
     return item.quantity > item.stock && item.stock > 0
   }
 
@@ -209,7 +250,7 @@ export default function CartPage() {
 
       setProductStocks(stockMap)
 
-      // Actualizar stock en el carrito
+      // Actualizar cantidades en el carrito si exceden el stock
       validItems.forEach((item) => {
         const productStock = stockMap[item.productId]
         if (!productStock) return
@@ -223,7 +264,10 @@ export default function CartPage() {
           availableStock = productStock.totalStock
         }
 
-        updateItemStock(item.id, availableStock)
+        if (item.quantity > availableStock && availableStock > 0) {
+          updateItemQuantity(item.id, availableStock)
+          toast.warning(`Cantidad ajustada para ${item.name}${item.size ? ` (${item.size})` : ""}`)
+        }
       })
 
       toast.success("Stock actualizado correctamente")
@@ -241,13 +285,13 @@ export default function CartPage() {
       return
     }
 
-    const itemsWithStock = items.filter((item) => item.stock > 0 && item.productId)
+    const itemsWithStock = items.filter((item) => !isItemOutOfStock(item) && item.productId)
     if (itemsWithStock.length === 0) {
       toast.error("No hay productos disponibles en tu carrito")
       return
     }
 
-    const invalidQuantities = items.filter((item) => item.quantity > item.stock && item.stock > 0)
+    const invalidQuantities = items.filter((item) => isQuantityExceedsStock(item))
     if (invalidQuantities.length > 0) {
       toast.error("Algunas cantidades exceden el stock disponible. Por favor ajústalas.")
       return
@@ -295,9 +339,9 @@ export default function CartPage() {
   const hasOutOfStockItems = items.some((item) => isItemOutOfStock(item))
   const hasExcessQuantities = items.some((item) => isQuantityExceedsStock(item))
 
-  // NO filtrar por productId aquí - mostrar todos los items
-  const validItems = items
-  console.log("Items to display in cart:", validItems)
+  // Filtrar solo items válidos con productId
+  const validItems = items.filter((item) => item.productId)
+  console.log("Valid items to display in cart:", validItems)
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -417,9 +461,18 @@ export default function CartPage() {
                               <p className="text-sm text-muted-foreground mb-3">
                                 {formatPrice(item.price || 0)} {item.size && `- Talla: ${item.size}`}
                               </p>
+
+                              {/* Mostrar stock disponible */}
                               <p className="text-xs text-muted-foreground mb-2">
-                                Stock disponible: {item.stock} unidades
+                                Stock disponible:{" "}
+                                {item.productId && productStocks[item.productId]
+                                  ? productStocks[item.productId].hasSizes && item.size
+                                    ? productStocks[item.productId].sizes.find((s) => s.size === item.size)?.stock || 0
+                                    : productStocks[item.productId].totalStock
+                                  : item.stock}{" "}
+                                unidades
                               </p>
+
                               <div className="flex justify-between items-center">
                                 <div className="flex items-center border rounded-lg">
                                   <Button
@@ -437,7 +490,7 @@ export default function CartPage() {
                                     size="icon"
                                     className="h-8 w-8"
                                     onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                                    disabled={item.quantity >= item.stock || item.stock === 0}
+                                    disabled={isOutOfStock || quantityExceedsStock}
                                   >
                                     <Plus className="h-4 w-4" />
                                   </Button>
@@ -491,8 +544,8 @@ export default function CartPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span>
-                        Subtotal ({validItems.filter((item) => item.stock > 0).length}{" "}
-                        {validItems.filter((item) => item.stock > 0).length === 1 ? "producto" : "productos"})
+                        Subtotal ({validItems.filter((item) => !isItemOutOfStock(item)).length}{" "}
+                        {validItems.filter((item) => !isItemOutOfStock(item)).length === 1 ? "producto" : "productos"})
                       </span>
                       <span>{formatPrice(subtotal)}</span>
                     </div>
@@ -538,7 +591,7 @@ export default function CartPage() {
                       isCheckingOut ||
                       status === "loading" ||
                       isValidatingStock ||
-                      validItems.filter((item) => item.stock > 0).length === 0
+                      validItems.filter((item) => !isItemOutOfStock(item)).length === 0
                     }
                   >
                     {isCheckingOut ? (
@@ -551,7 +604,7 @@ export default function CartPage() {
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Verificando...
                       </>
-                    ) : validItems.filter((item) => item.stock > 0).length === 0 ? (
+                    ) : validItems.filter((item) => !isItemOutOfStock(item)).length === 0 ? (
                       "Sin productos disponibles"
                     ) : (
                       "Finalizar Compra"
