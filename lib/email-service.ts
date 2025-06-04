@@ -1,17 +1,26 @@
 import { Resend } from "resend"
-import nodemailer from "nodemailer"
+import * as nodemailer from "nodemailer"
 
 // Configuración de Resend
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Configuración de Gmail SMTP
-const gmailTransporter = nodemailer.createTransporter({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD, // Contraseña de aplicación, NO tu contraseña normal
-  },
-})
+let gmailTransporter: nodemailer.Transporter | null = null
+
+// Inicializar Gmail transporter solo si las credenciales están disponibles
+if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+  try {
+    gmailTransporter = nodemailer.createTransporter({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+    })
+  } catch (error) {
+    console.error("Error inicializando Gmail transporter:", error)
+  }
+}
 
 export interface EmailOptions {
   to: string
@@ -24,7 +33,7 @@ export async function sendEmail({ to, subject, html, from }: EmailOptions) {
   console.log("Intentando enviar email a:", to)
 
   // Intentar primero con Gmail SMTP si está configurado
-  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+  if (gmailTransporter && process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
     try {
       console.log("Enviando con Gmail SMTP...")
 
