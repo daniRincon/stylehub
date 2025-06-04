@@ -36,9 +36,16 @@ export default function CartPage() {
   const [productStocks, setProductStocks] = useState<ProductStockInfo>({})
   const [isValidatingStock, setIsValidatingStock] = useState(false)
 
+  // Debug: Log del estado del carrito
+  console.log("Cart page - All items:", items)
+  console.log("Cart page - Items length:", items.length)
+
   // Limpiar items inválidos del carrito
   useEffect(() => {
+    console.log("Checking for invalid items...")
     const invalidItems = items.filter((item) => !item.productId)
+    console.log("Invalid items found:", invalidItems)
+
     if (invalidItems.length > 0) {
       console.warn("Found invalid items in cart, removing:", invalidItems)
       invalidItems.forEach((item) => removeItem(item.id))
@@ -50,18 +57,25 @@ export default function CartPage() {
   useEffect(() => {
     const validateStock = async () => {
       const validItems = items.filter((item) => item.productId)
+      console.log("Valid items for stock validation:", validItems)
 
-      if (validItems.length === 0) return
+      if (validItems.length === 0) {
+        console.log("No valid items to validate stock")
+        return
+      }
 
       setIsValidatingStock(true)
       try {
         const productIds = [...new Set(validItems.map((item) => item.productId))]
+        console.log("Product IDs to validate:", productIds)
 
         const stockPromises = productIds.map(async (productId) => {
           try {
+            console.log("Fetching stock for productId:", productId)
             const response = await fetch(`/api/products/${productId}/stock`)
             if (response.ok) {
               const data = await response.json()
+              console.log("Stock data received for", productId, ":", data)
               return {
                 id: productId,
                 sizes: data.sizes || [],
@@ -79,6 +93,8 @@ export default function CartPage() {
         })
 
         const stockResults = await Promise.all(stockPromises)
+        console.log("All stock results:", stockResults)
+
         const stockMap: ProductStockInfo = {}
 
         stockResults.forEach((result) => {
@@ -89,12 +105,16 @@ export default function CartPage() {
           }
         })
 
+        console.log("Stock map created:", stockMap)
         setProductStocks(stockMap)
 
         // Actualizar stock en el carrito
         validItems.forEach((item) => {
           const productStock = stockMap[item.productId]
-          if (!productStock) return
+          if (!productStock) {
+            console.log("No stock info found for product:", item.productId)
+            return
+          }
 
           let availableStock = 0
 
@@ -102,13 +122,16 @@ export default function CartPage() {
             // Producto con tallas - buscar stock de la talla específica
             const sizeStock = productStock.sizes.find((s) => s.size === item.size)
             availableStock = sizeStock?.stock || 0
+            console.log(`Stock for ${item.productId} size ${item.size}:`, availableStock)
           } else if (!productStock.hasSizes) {
             // Producto sin tallas - usar stock total
             availableStock = productStock.totalStock
+            console.log(`Total stock for ${item.productId}:`, availableStock)
           }
 
           // Solo actualizar si el stock es diferente al actual
           if (item.stock !== availableStock) {
+            console.log(`Updating stock for item ${item.id} from ${item.stock} to ${availableStock}`)
             updateItemStock(item.id, availableStock)
 
             if (item.quantity > availableStock && availableStock > 0) {
@@ -271,7 +294,10 @@ export default function CartPage() {
 
   const hasOutOfStockItems = items.some((item) => isItemOutOfStock(item))
   const hasExcessQuantities = items.some((item) => isQuantityExceedsStock(item))
-  const validItems = items.filter((item) => item.productId)
+
+  // NO filtrar por productId aquí - mostrar todos los items
+  const validItems = items
+  console.log("Items to display in cart:", validItems)
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -285,6 +311,21 @@ export default function CartPage() {
               <RefreshCw className={`h-4 w-4 mr-2 ${isValidatingStock ? "animate-spin" : ""}`} />
               Actualizar Stock
             </Button>
+          </div>
+
+          {/* Debug info */}
+          <div className="mb-4 p-3 bg-gray-50 border rounded-lg">
+            <p className="text-sm">
+              <strong>Debug:</strong> Total items: {items.length} | Items con productId:{" "}
+              {items.filter((i) => i.productId).length} | Items sin productId:{" "}
+              {items.filter((i) => !i.productId).length}
+            </p>
+            {items.length > 0 && (
+              <details className="mt-2">
+                <summary className="text-sm cursor-pointer">Ver items del carrito</summary>
+                <pre className="text-xs mt-2 bg-white p-2 rounded overflow-auto">{JSON.stringify(items, null, 2)}</pre>
+              </details>
+            )}
           </div>
 
           {isValidatingStock && (
@@ -332,7 +373,7 @@ export default function CartPage() {
               <div className="lg:col-span-2">
                 <div className="bg-white rounded-lg shadow">
                   <div className="p-6">
-                    <h2 className="text-lg font-bold mb-4">Productos</h2>
+                    <h2 className="text-lg font-bold mb-4">Productos ({validItems.length})</h2>
 
                     <div className="space-y-6">
                       {validItems.map((item) => {
@@ -359,6 +400,7 @@ export default function CartPage() {
                               <div className="flex justify-between items-start mb-2">
                                 <div>
                                   <h3 className="font-medium text-lg">{item.name}</h3>
+                                  <p className="text-xs text-gray-500">ID: {item.productId || "Sin ID"}</p>
                                   {isOutOfStock && (
                                     <Badge variant="destructive" className="mt-1">
                                       Agotado

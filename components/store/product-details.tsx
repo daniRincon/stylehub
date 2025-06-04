@@ -30,6 +30,11 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
 
   const { addItem } = useCart()
 
+  // Debug logs
+  console.log("ProductDetails - Product:", product)
+  console.log("ProductDetails - Product ID:", product.id)
+  console.log("ProductDetails - Product stock:", product.stock)
+
   // Función para obtener la URL de imagen optimizada
   const getImageUrl = (imageUrl: string) => {
     if (!imageUrl) return "/placeholder.svg?height=400&width=400&text=Sin+imagen"
@@ -58,24 +63,31 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
   useEffect(() => {
     const fetchStock = async () => {
       try {
+        console.log("Fetching stock for product:", product.id)
         const response = await fetch(`/api/products/${product.id}/stock`)
         if (response.ok) {
           const stockData = await response.json()
+          console.log("Stock data received:", stockData)
           setSizeStocks(stockData.sizes || [])
 
           // Si no hay tallas, usar el stock general
           if (!stockData.hasSizes) {
-            setAvailableStock(stockData.totalStock || product.stock || 0)
+            const totalStock = stockData.totalStock || product.stock || 0
+            console.log("Product without sizes, using total stock:", totalStock)
+            setAvailableStock(totalStock)
           }
         } else {
+          console.error("Failed to fetch stock, using fallback")
           // Fallback al stock del producto
-          setAvailableStock(product.stock || 0)
-          setSizeStocks([{ size: null, stock: product.stock || 0 }])
+          const fallbackStock = product.stock || 0
+          setAvailableStock(fallbackStock)
+          setSizeStocks([{ size: null, stock: fallbackStock }])
         }
       } catch (error) {
         console.error("Error fetching stock:", error)
-        setAvailableStock(product.stock || 0)
-        setSizeStocks([{ size: null, stock: product.stock || 0 }])
+        const fallbackStock = product.stock || 0
+        setAvailableStock(fallbackStock)
+        setSizeStocks([{ size: null, stock: fallbackStock }])
       }
     }
 
@@ -86,15 +98,23 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
 
   // Actualizar stock disponible cuando cambie la talla seleccionada
   useEffect(() => {
+    console.log("Size stocks:", sizeStocks)
+    console.log("Selected size:", selectedSize)
+
     if (sizeStocks.length > 0) {
       if (selectedSize) {
         const sizeStock = sizeStocks.find((s) => s.size === selectedSize)
-        setAvailableStock(sizeStock?.stock || 0)
+        const stock = sizeStock?.stock || 0
+        console.log("Stock for selected size:", stock)
+        setAvailableStock(stock)
       } else if (sizeStocks.length === 1 && sizeStocks[0].size === null) {
         // Producto sin tallas
-        setAvailableStock(sizeStocks[0].stock)
+        const stock = sizeStocks[0].stock
+        console.log("Stock for product without sizes:", stock)
+        setAvailableStock(stock)
       } else {
         // Si hay tallas pero no se ha seleccionado ninguna
+        console.log("Has sizes but none selected, setting stock to 0")
         setAvailableStock(0)
       }
     }
@@ -113,11 +133,20 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
   }
 
   const handleAddToCart = () => {
+    console.log("handleAddToCart called")
+    console.log("Product ID:", product.id)
+    console.log("Available stock:", availableStock)
+    console.log("Selected size:", selectedSize)
+
     const categorySlug = typeof product.category === "string" ? product.category : product.category?.slug
 
     // Verificar si necesita talla
     const needsSize = categorySlug !== "gorras" && categorySlug !== "accesorios"
     const hasSizes = sizeStocks.some((s) => s.size !== null)
+
+    console.log("Category slug:", categorySlug)
+    console.log("Needs size:", needsSize)
+    console.log("Has sizes:", hasSizes)
 
     if (needsSize && hasSizes && !selectedSize) {
       toast.error("Por favor selecciona una talla")
@@ -151,7 +180,7 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
       stock: availableStock,
     }
 
-    console.log("Adding item to cart:", cartItem)
+    console.log("Cart item to add:", cartItem)
 
     addItem(cartItem)
     toast.success(`${product.name} añadido al carrito`)
@@ -181,6 +210,8 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
 
   const categorySlug = getCategorySlug()
   const hasSizes = sizeStocks.some((s) => s.size !== null)
+
+  console.log("Available stock for display:", availableStock)
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -257,6 +288,17 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
         <div className="mb-6">
           <h3 className="font-medium mb-2">Descripción:</h3>
           <p className="text-muted-foreground">{product.description}</p>
+        </div>
+
+        {/* Debug info */}
+        <div className="mb-4 p-2 bg-gray-50 border rounded text-xs">
+          <p>
+            <strong>Debug:</strong>
+          </p>
+          <p>Product ID: {product.id}</p>
+          <p>Has sizes: {hasSizes ? "Sí" : "No"}</p>
+          <p>Available stock: {availableStock}</p>
+          <p>Selected size: {selectedSize || "Ninguna"}</p>
         </div>
 
         {/* Selector de tallas */}
