@@ -62,7 +62,7 @@ export default function CartPage() {
 
         setProductStocks(stockMap)
 
-        // Actualizar stock máximo en el carrito y verificar disponibilidad
+        // Actualizar stock en el carrito
         items.forEach((item) => {
           const productSizes = stockMap[item.productId] || []
           const sizeStock = item.size
@@ -72,7 +72,8 @@ export default function CartPage() {
           const availableStock = sizeStock?.stock || 0
           updateItemStock(item.id, availableStock)
 
-          if (item.quantity > availableStock) {
+          // Solo mostrar warning si la cantidad actual excede el stock
+          if (item.quantity > availableStock && availableStock > 0) {
             toast.warning(`Stock actualizado para ${item.name}${item.size ? ` (${item.size})` : ""}`)
           }
         })
@@ -84,7 +85,7 @@ export default function CartPage() {
     }
 
     validateStock()
-  }, [items.length]) // Solo cuando cambie el número de items, no en cada cambio
+  }, [items.length])
 
   const handleUpdateQuantity = (id: string, quantity: number) => {
     if (quantity < 1) return
@@ -92,16 +93,22 @@ export default function CartPage() {
     const item = items.find((i) => i.id === id)
     if (!item) return
 
-    if (quantity > item.maxStock) {
-      toast.error(`Solo hay ${item.maxStock} unidades disponibles`)
+    if (quantity > item.stock) {
+      toast.error(`Solo hay ${item.stock} unidades disponibles`)
       return
     }
 
     updateItemQuantity(id, quantity)
   }
 
+  // Función mejorada para verificar si un item está fuera de stock
   const isItemOutOfStock = (item: any) => {
-    return item.quantity > item.maxStock || item.maxStock === 0
+    return item.stock === 0
+  }
+
+  // Función para verificar si la cantidad excede el stock
+  const isQuantityExceedsStock = (item: any) => {
+    return item.quantity > item.stock && item.stock > 0
   }
 
   const handleRefreshStock = async () => {
@@ -122,10 +129,17 @@ export default function CartPage() {
       return
     }
 
-    // Verificar stock antes del checkout
-    const outOfStockItems = items.filter((item) => isItemOutOfStock(item))
-    if (outOfStockItems.length > 0) {
-      toast.error("Algunos productos en tu carrito no tienen stock suficiente. Por favor actualiza las cantidades.")
+    // Verificar que hay productos con stock disponible
+    const itemsWithStock = items.filter((item) => item.stock > 0)
+    if (itemsWithStock.length === 0) {
+      toast.error("No hay productos disponibles en tu carrito")
+      return
+    }
+
+    // Verificar que las cantidades no excedan el stock
+    const invalidQuantities = items.filter((item) => item.quantity > item.stock && item.stock > 0)
+    if (invalidQuantities.length > 0) {
+      toast.error("Algunas cantidades exceden el stock disponible. Por favor ajústalas.")
       return
     }
 
@@ -174,7 +188,9 @@ export default function CartPage() {
   const tax = subtotal * 0.19 // IVA 19%
   const total = subtotal + shipping + tax
 
+  // Solo considerar como problema si NO hay stock (stock = 0)
   const hasOutOfStockItems = items.some((item) => isItemOutOfStock(item))
+  const hasExcessQuantities = items.some((item) => isQuantityExceedsStock(item))
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -199,12 +215,23 @@ export default function CartPage() {
             </div>
           )}
 
+          {hasExcessQuantities && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center">
+                <AlertTriangle className="h-4 w-4 mr-2 text-yellow-600" />
+                <span className="text-sm text-yellow-800">
+                  Algunas cantidades exceden el stock disponible. Se ajustarán automáticamente al procesar la compra.
+                </span>
+              </div>
+            </div>
+          )}
+
           {hasOutOfStockItems && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center">
                 <AlertTriangle className="h-4 w-4 mr-2 text-red-600" />
                 <span className="text-sm text-red-800">
-                  Algunos productos en tu carrito exceden el stock disponible. Ajusta las cantidades antes de continuar.
+                  Algunos productos en tu carrito están agotados y no podrán ser incluidos en la compra.
                 </span>
               </div>
             </div>
@@ -229,6 +256,7 @@ export default function CartPage() {
                     <div className="space-y-6">
                       {items.map((item) => {
                         const isOutOfStock = isItemOutOfStock(item)
+                        const quantityExceedsStock = isQuantityExceedsStock(item)
 
                         return (
                           <div key={item.id} className="flex flex-col sm:flex-row gap-4 p-4 border rounded-lg">
@@ -245,7 +273,12 @@ export default function CartPage() {
                                   <h3 className="font-medium text-lg">{item.name}</h3>
                                   {isOutOfStock && (
                                     <Badge variant="destructive" className="mt-1">
-                                      Stock insuficiente
+                                      Agotado
+                                    </Badge>
+                                  )}
+                                  {quantityExceedsStock && (
+                                    <Badge variant="secondary" className="mt-1">
+                                      Cantidad ajustada
                                     </Badge>
                                   )}
                                 </div>
@@ -255,7 +288,7 @@ export default function CartPage() {
                                 {formatPrice(item.price || 0)} {item.size && `- Talla: ${item.size}`}
                               </p>
                               <p className="text-xs text-muted-foreground mb-2">
-                                Stock disponible: {item.maxStock} unidades
+                                Stock disponible: {item.stock} unidades
                               </p>
                               <div className="flex justify-between items-center">
                                 <div className="flex items-center border rounded-lg">
@@ -274,7 +307,7 @@ export default function CartPage() {
                                     size="icon"
                                     className="h-8 w-8"
                                     onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                                    disabled={item.quantity >= item.maxStock}
+                                    disabled={item.quantity >= item.stock || item.stock === 0}
                                   >
                                     <Plus className="h-4 w-4" />
                                   </Button>
@@ -328,7 +361,8 @@ export default function CartPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span>
-                        Subtotal ({items.length} {items.length === 1 ? "producto" : "productos"})
+                        Subtotal ({items.filter((item) => item.stock > 0).length}{" "}
+                        {items.filter((item) => item.stock > 0).length === 1 ? "producto" : "productos"})
                       </span>
                       <span>{formatPrice(subtotal)}</span>
                     </div>
@@ -362,10 +396,22 @@ export default function CartPage() {
                     </div>
                   )}
 
+                  {/* Mostrar información sobre productos sin stock */}
+                  {hasOutOfStockItems && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800">Los productos agotados no se incluirán en la compra</p>
+                    </div>
+                  )}
+
                   <Button
                     className="w-full bg-gold hover:bg-gold/90 text-white h-12 text-lg font-medium"
                     onClick={handleCheckout}
-                    disabled={isCheckingOut || status === "loading" || hasOutOfStockItems || isValidatingStock}
+                    disabled={
+                      isCheckingOut ||
+                      status === "loading" ||
+                      isValidatingStock ||
+                      items.filter((item) => item.stock > 0).length === 0
+                    }
                   >
                     {isCheckingOut ? (
                       <>
@@ -377,8 +423,8 @@ export default function CartPage() {
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Verificando...
                       </>
-                    ) : hasOutOfStockItems ? (
-                      "Ajusta cantidades"
+                    ) : items.filter((item) => item.stock > 0).length === 0 ? (
+                      "Sin productos disponibles"
                     ) : (
                       "Finalizar Compra"
                     )}
@@ -387,6 +433,9 @@ export default function CartPage() {
                   <div className="mt-4 text-xs text-muted-foreground text-center">
                     <p>✓ Envío gratis en compras superiores a $100.000</p>
                     <p>✓ Garantía de satisfacción</p>
+                    {hasExcessQuantities && (
+                      <p className="text-yellow-600">⚠ Las cantidades se ajustarán al stock disponible</p>
+                    )}
                   </div>
                 </div>
               </div>

@@ -71,12 +71,13 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
 
     const cartItem: CartItem = {
       id: selectedSize ? `${product.id}-${selectedSize}` : product.id,
+      productId: product.id,
       name: product.name,
       price: product.price,
       image: imageUrl,
       quantity,
       size: selectedSize,
-      slug: product.slug,
+      stock: product.stock, // Añadir stock del producto
     }
 
     addItem(cartItem)

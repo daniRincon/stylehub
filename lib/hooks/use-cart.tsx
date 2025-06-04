@@ -11,7 +11,7 @@ export interface CartItem {
   image: string
   size?: string
   quantity: number
-  maxStock: number
+  stock: number // Cambiar de maxStock a stock
 }
 
 interface CartState {
@@ -24,7 +24,7 @@ type CartAction =
   | { type: "UPDATE_QUANTITY"; payload: { id: string; quantity: number } }
   | { type: "CLEAR_CART" }
   | { type: "LOAD_CART"; payload: CartItem[] }
-  | { type: "UPDATE_STOCK"; payload: { id: string; maxStock: number } }
+  | { type: "UPDATE_STOCK"; payload: { id: string; stock: number } }
 
 const cartReducer = (state: CartState, action: CartAction): CartState => {
   switch (action.type) {
@@ -33,7 +33,7 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
 
       if (existingItem) {
         const newQuantity = existingItem.quantity + (action.payload.quantity || 1)
-        const maxAllowed = Math.min(newQuantity, existingItem.maxStock)
+        const maxAllowed = Math.min(newQuantity, existingItem.stock)
 
         return {
           ...state,
@@ -57,9 +57,7 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
       return {
         ...state,
         items: state.items.map((item) =>
-          item.id === action.payload.id
-            ? { ...item, quantity: Math.min(action.payload.quantity, item.maxStock) }
-            : item,
+          item.id === action.payload.id ? { ...item, quantity: Math.min(action.payload.quantity, item.stock) } : item,
         ),
       }
 
@@ -70,8 +68,8 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
           item.id === action.payload.id
             ? {
                 ...item,
-                maxStock: action.payload.maxStock,
-                quantity: Math.min(item.quantity, action.payload.maxStock),
+                stock: action.payload.stock,
+                quantity: Math.min(item.quantity, action.payload.stock),
               }
             : item,
         ),
@@ -99,7 +97,7 @@ interface CartContextType {
   addItem: (item: Omit<CartItem, "quantity"> & { quantity?: number }) => void
   removeItem: (id: string) => void
   updateItemQuantity: (id: string, quantity: number) => void
-  updateItemStock: (id: string, maxStock: number) => void
+  updateItemStock: (id: string, stock: number) => void
   clearCart: () => void
   getTotalItems: () => number
   getTotalPrice: () => number
@@ -148,8 +146,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const updateItemStock = (id: string, maxStock: number) => {
-    dispatch({ type: "UPDATE_STOCK", payload: { id, maxStock } })
+  const updateItemStock = (id: string, stock: number) => {
+    dispatch({ type: "UPDATE_STOCK", payload: { id, stock } })
   }
 
   const clearCart = () => {
