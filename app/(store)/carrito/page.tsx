@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { ShoppingCart, Trash2, ArrowLeft, Loader2, Plus, Minus, AlertTriangle } from "lucide-react"
+import { ShoppingCart, Trash2, ArrowLeft, Loader2, Plus, Minus, AlertTriangle, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
@@ -14,16 +14,21 @@ import { formatPrice } from "@/lib/utils"
 import StoreHeader from "@/components/store/store-header"
 import StoreFooter from "@/components/store/store-footer"
 
-interface ProductStock {
-  [key: string]: number
+interface SizeStock {
+  size: string
+  stock: number
+}
+
+interface ProductStockInfo {
+  [productId: string]: SizeStock[]
 }
 
 export default function CartPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
-  const { items, removeItem, updateItemQuantity, clearCart, getTotalPrice } = useCart()
+  const { items, removeItem, updateItemQuantity, updateItemStock, clearCart, getTotalPrice } = useCart()
   const [isCheckingOut, setIsCheckingOut] = useState(false)
-  const [productStocks, setProductStocks] = useState<ProductStock>({})
+  const [productStocks, setProductStocks] = useState<ProductStockInfo>({})
   const [isValidatingStock, setIsValidatingStock] = useState(false)
 
   // Validar stock de productos en el carrito
@@ -33,40 +38,44 @@ export default function CartPage() {
 
       setIsValidatingStock(true)
       try {
-        const productIds = [...new Set(items.map((item) => item.id.split("-")[0]))]
+        const productIds = [...new Set(items.map((item) => item.productId))]
 
         const stockPromises = productIds.map(async (productId) => {
           try {
-            const response = await fetch(`/api/products/${productId}`)
+            const response = await fetch(`/api/products/${productId}/stock`)
             if (response.ok) {
-              const product = await response.json()
-              return { id: productId, stock: product.stock }
+              const data = await response.json()
+              return { id: productId, sizes: data.sizes || [] }
             }
-            return { id: productId, stock: 0 }
+            return { id: productId, sizes: [] }
           } catch {
-            return { id: productId, stock: 0 }
+            return { id: productId, sizes: [] }
           }
         })
 
         const stockResults = await Promise.all(stockPromises)
-        const stockMap: ProductStock = {}
+        const stockMap: ProductStockInfo = {}
 
         stockResults.forEach((result) => {
-          stockMap[result.id] = result.stock
+          stockMap[result.id] = result.sizes
         })
 
         setProductStocks(stockMap)
 
-        // Verificar si algún producto excede el stock disponible
-        const invalidItems = items.filter((item) => {
-          const productId = item.id.split("-")[0]
-          const availableStock = stockMap[productId] || 0
-          return item.quantity > availableStock
-        })
+        // Actualizar stock máximo en el carrito y verificar disponibilidad
+        items.forEach((item) => {
+          const productSizes = stockMap[item.productId] || []
+          const sizeStock = item.size
+            ? productSizes.find((s) => s.size === item.size)
+            : { stock: productSizes.reduce((total, s) => total + s.stock, 0) }
 
-        if (invalidItems.length > 0) {
-          toast.warning("Algunos productos en tu carrito exceden el stock disponible")
-        }
+          const availableStock = sizeStock?.stock || 0
+          updateItemStock(item.id, availableStock)
+
+          if (item.quantity > availableStock) {
+            toast.warning(`Stock actualizado para ${item.name}${item.size ? ` (${item.size})` : ""}`)
+          }
+        })
       } catch (error) {
         console.error("Error validating stock:", error)
       } finally {
@@ -75,32 +84,36 @@ export default function CartPage() {
     }
 
     validateStock()
-  }, [items])
+  }, [items.length]) // Solo cuando cambie el número de items, no en cada cambio
 
   const handleUpdateQuantity = (id: string, quantity: number) => {
     if (quantity < 1) return
 
-    const productId = id.split("-")[0]
-    const availableStock = productStocks[productId] || 0
+    const item = items.find((i) => i.id === id)
+    if (!item) return
 
-    if (quantity > availableStock) {
-      toast.error(`Solo hay ${availableStock} unidades disponibles`)
+    if (quantity > item.maxStock) {
+      toast.error(`Solo hay ${item.maxStock} unidades disponibles`)
       return
     }
 
     updateItemQuantity(id, quantity)
   }
 
-  const getMaxQuantity = (itemId: string) => {
-    const productId = itemId.split("-")[0]
-    return productStocks[productId] || 0
+  const isItemOutOfStock = (item: any) => {
+    return item.quantity > item.maxStock || item.maxStock === 0
   }
 
-  const isItemOutOfStock = (itemId: string) => {
-    const productId = itemId.split("-")[0]
-    const availableStock = productStocks[productId] || 0
-    const item = items.find((i) => i.id === itemId)
-    return item ? item.quantity > availableStock : false
+  const handleRefreshStock = async () => {
+    setIsValidatingStock(true)
+    // Trigger stock validation
+    const event = new CustomEvent("refreshStock")
+    window.dispatchEvent(event)
+
+    setTimeout(() => {
+      setIsValidatingStock(false)
+      toast.success("Stock actualizado")
+    }, 1000)
   }
 
   const handleCheckout = async () => {
@@ -110,7 +123,7 @@ export default function CartPage() {
     }
 
     // Verificar stock antes del checkout
-    const outOfStockItems = items.filter((item) => isItemOutOfStock(item.id))
+    const outOfStockItems = items.filter((item) => isItemOutOfStock(item))
     if (outOfStockItems.length > 0) {
       toast.error("Algunos productos en tu carrito no tienen stock suficiente. Por favor actualiza las cantidades.")
       return
@@ -161,7 +174,7 @@ export default function CartPage() {
   const tax = subtotal * 0.19 // IVA 19%
   const total = subtotal + shipping + tax
 
-  const hasOutOfStockItems = items.some((item) => isItemOutOfStock(item.id))
+  const hasOutOfStockItems = items.some((item) => isItemOutOfStock(item))
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -169,7 +182,13 @@ export default function CartPage() {
 
       <main className="flex-1 py-8">
         <div className="container mx-auto px-4">
-          <h1 className="text-2xl font-bold mb-6">Carrito de Compras</h1>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold">Carrito de Compras</h1>
+            <Button variant="outline" size="sm" onClick={handleRefreshStock} disabled={isValidatingStock}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isValidatingStock ? "animate-spin" : ""}`} />
+              Actualizar Stock
+            </Button>
+          </div>
 
           {isValidatingStock && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -209,8 +228,7 @@ export default function CartPage() {
 
                     <div className="space-y-6">
                       {items.map((item) => {
-                        const maxQuantity = getMaxQuantity(item.id)
-                        const isOutOfStock = isItemOutOfStock(item.id)
+                        const isOutOfStock = isItemOutOfStock(item)
 
                         return (
                           <div key={item.id} className="flex flex-col sm:flex-row gap-4 p-4 border rounded-lg">
@@ -236,9 +254,9 @@ export default function CartPage() {
                               <p className="text-sm text-muted-foreground mb-3">
                                 {formatPrice(item.price || 0)} {item.size && `- Talla: ${item.size}`}
                               </p>
-                              {maxQuantity > 0 && (
-                                <p className="text-xs text-muted-foreground mb-2">Stock disponible: {maxQuantity}</p>
-                              )}
+                              <p className="text-xs text-muted-foreground mb-2">
+                                Stock disponible: {item.maxStock} unidades
+                              </p>
                               <div className="flex justify-between items-center">
                                 <div className="flex items-center border rounded-lg">
                                   <Button
@@ -256,7 +274,7 @@ export default function CartPage() {
                                     size="icon"
                                     className="h-8 w-8"
                                     onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                                    disabled={item.quantity >= maxQuantity}
+                                    disabled={item.quantity >= item.maxStock}
                                   >
                                     <Plus className="h-4 w-4" />
                                   </Button>
