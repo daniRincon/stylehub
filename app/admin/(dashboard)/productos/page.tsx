@@ -167,11 +167,17 @@ export default function ProductosPage() {
         throw new Error("Error al cargar productos")
       }
 
-      const data: ApiResponse = await response.json()
+      const data = await response.json()
+      console.log("Respuesta de la API:", data) // Debug
 
+      // Manejar tanto la estructura nueva como la anterior
       if (data && data.products && Array.isArray(data.products)) {
         setProducts(data.products)
         setTotalPages(data.pagination?.pages || 1)
+      } else if (data && data.data && Array.isArray(data.data)) {
+        // Fallback para la estructura anterior
+        setProducts(data.data)
+        setTotalPages(data.pagination?.totalPages || data.pagination?.pages || 1)
       } else {
         console.error("Estructura de respuesta inesperada:", data)
         setProducts([])

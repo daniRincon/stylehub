@@ -32,7 +32,7 @@ export async function GET(request: Request) {
         where,
         include: {
           category: true,
-          productSizes: true, // Corregido: usar productSizes en lugar de sizes
+          productSizes: true,
         },
         skip,
         take: limit,
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       prisma.product.count({ where }),
     ])
 
-    // Calcular stock total para cada producto
+    // Calcular stock total para cada producto y añadir alias
     const productsWithTotalStock = products.map((product) => ({
       ...product,
       totalStock: product.productSizes.reduce((total, size) => total + size.stock, 0),
@@ -49,12 +49,12 @@ export async function GET(request: Request) {
     }))
 
     return NextResponse.json({
-      data: productsWithTotalStock,
+      products: productsWithTotalStock, // Cambiar 'data' por 'products'
       pagination: {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        pages: Math.ceil(total / limit), // Cambiar 'totalPages' por 'pages'
       },
     })
   } catch (error) {
