@@ -35,6 +35,13 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
+        },
+      },
     }),
     CredentialsProvider({
       name: "Credentials",
@@ -75,8 +82,8 @@ export const authOptions: NextAuthOptions = {
 
             if (!customer || !customer.password) return null
 
-            // Verificar si el email está confirmado
-            if (!customer.emailVerified) {
+            // Verificar si el email está confirmado (solo para cuentas con contraseña)
+            if (customer.password && !customer.emailVerified) {
               throw new Error("Por favor confirma tu correo electrónico antes de iniciar sesión")
             }
 
@@ -93,7 +100,7 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           console.error("Error en authorize:", error)
-          return null
+          throw error
         }
       },
     }),
@@ -108,6 +115,8 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user, account, profile }) {
+      console.log("SignIn callback:", { user, account: account?.provider, profile })
+
       if (account?.provider === "google") {
         try {
           // Verificar si el customer ya existe
@@ -118,13 +127,23 @@ export const authOptions: NextAuthOptions = {
           let customerId = existingCustomers[0]?.id
 
           if (!customerId) {
-            // Crear nuevo customer
+            // Crear nuevo customer con email verificado automáticamente
             const newCustomers = await sql`
               INSERT INTO customers (id, email, name, password, "emailVerified", "createdAt", "updatedAt")
               VALUES (gen_random_uuid()::text, ${user.email}, ${user.name}, '', NOW(), NOW(), NOW())
               RETURNING id
             `
             customerId = newCustomers[0].id
+            console.log("Nuevo customer creado:", customerId)
+          } else {
+            // Si el customer existe pero no tiene email verificado, verificarlo
+            if (!existingCustomers[0].emailVerified) {
+              await sql`
+                UPDATE customers 
+                SET "emailVerified" = NOW(), name = ${user.name}
+                WHERE id = ${customerId}
+              `
+            }
           }
 
           // Verificar si ya existe la cuenta OAuth
@@ -138,15 +157,16 @@ export const authOptions: NextAuthOptions = {
             // Crear nueva cuenta OAuth
             await sql`
               INSERT INTO customer_accounts (
-                "customerId", type, provider, "providerAccountId", 
-                access_token, expires_at, token_type, scope, id_token
+                id, "customerId", type, provider, "providerAccountId", 
+                access_token, expires_at, token_type, scope, id_token, created_at, updated_at
               )
               VALUES (
-                ${customerId}, ${account.type}, ${account.provider}, ${account.providerAccountId},
+                gen_random_uuid()::text, ${customerId}, ${account.type}, ${account.provider}, ${account.providerAccountId},
                 ${account.access_token}, ${account.expires_at}, ${account.token_type}, 
-                ${account.scope}, ${account.id_token}
+                ${account.scope}, ${account.id_token}, NOW(), NOW()
               )
             `
+            console.log("Nueva cuenta OAuth creada")
           }
 
           // Actualizar información del usuario
@@ -193,8 +213,11 @@ export const authOptions: NextAuthOptions = {
       return session as Session
     },
     async redirect({ url, baseUrl }) {
+      // Si es una URL relativa, usar baseUrl
       if (url.startsWith("/")) return `${baseUrl}${url}`
+      // Si es la misma origin, permitir
       if (new URL(url).origin === baseUrl) return url
+      // Por defecto, ir al home
       return baseUrl
     },
   },

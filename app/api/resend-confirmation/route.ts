@@ -29,7 +29,10 @@ export async function POST(request: NextRequest) {
 
     // Eliminar tokens anteriores
     await prisma.verificationToken.deleteMany({
-      where: { identifier: email.toLowerCase() },
+      where: {
+        identifier: email.toLowerCase(),
+        type: "EMAIL_VERIFICATION",
+      },
     })
 
     // Crear nuevo token
@@ -41,6 +44,7 @@ export async function POST(request: NextRequest) {
       data: {
         identifier: email.toLowerCase(),
         token,
+        type: "EMAIL_VERIFICATION",
         expires,
       },
     })
@@ -51,25 +55,25 @@ export async function POST(request: NextRequest) {
 
     // Enviar email de confirmación
     await resend.emails.send({
-      from: "no-reply@tutienda.com",
+      from: "StyleHub <onboarding@resend.dev>",
       to: email,
-      subject: "Confirma tu correo electrónico",
+      subject: "Confirma tu correo electrónico - StyleHub",
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h1 style="color: #333;">Confirma tu correo electrónico</h1>
           <p>Hola ${customer.name},</p>
           <p>Has solicitado un nuevo enlace para confirmar tu correo electrónico. Por favor haz clic en el siguiente enlace:</p>
           <p>
             <a 
               href="${confirmationUrl}" 
-              style="display: inline-block; background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;"
+              style="display: inline-block; background-color: #4F46E5; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;"
             >
               Confirmar mi correo electrónico
             </a>
           </p>
           <p>Si no has solicitado este enlace, puedes ignorar este mensaje.</p>
           <p>El enlace expirará en 24 horas.</p>
-          <p>El equipo de la tienda</p>
+          <p><strong>El equipo de StyleHub</strong></p>
         </div>
       `,
     })
