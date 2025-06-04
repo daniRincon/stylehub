@@ -27,6 +27,7 @@ model Customer {
   email             String    @unique
   name              String
   password          String
+  phone             String?   // Campo añadido
   emailVerified     DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -36,7 +37,7 @@ model Customer {
   reviews           Review[]
   addresses         Address[]
   wishlistItems     WishlistItem[]
-  accounts          CustomerAccount[] // Añadida relación inversa
+  accounts          CustomerAccount[]
 
   @@map("customers")
 }
