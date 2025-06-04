@@ -32,24 +32,41 @@ export default function CartPage() {
   const [productStocks, setProductStocks] = useState<ProductStockInfo>({})
   const [isValidatingStock, setIsValidatingStock] = useState(false)
 
+  // Limpiar items inválidos del carrito
+  useEffect(() => {
+    const invalidItems = items.filter((item) => !item.productId)
+    if (invalidItems.length > 0) {
+      console.warn("Found invalid items in cart, removing:", invalidItems)
+      invalidItems.forEach((item) => removeItem(item.id))
+      toast.warning("Se eliminaron productos inválidos del carrito")
+    }
+  }, [items, removeItem])
+
   // Validar stock de productos en el carrito
   useEffect(() => {
     const validateStock = async () => {
-      if (items.length === 0) return
+      // Filtrar items válidos con productId
+      const validItems = items.filter((item) => item.productId)
+
+      if (validItems.length === 0) return
 
       setIsValidatingStock(true)
       try {
-        const productIds = [...new Set(items.map((item) => item.productId))]
+        const productIds = [...new Set(validItems.map((item) => item.productId))]
 
         const stockPromises = productIds.map(async (productId) => {
           try {
+            console.log("Fetching stock for productId:", productId) // Debug log
             const response = await fetch(`/api/products/${productId}/stock`)
             if (response.ok) {
               const data = await response.json()
               return { id: productId, sizes: data.sizes || [] }
+            } else {
+              console.error(`Failed to fetch stock for product ${productId}:`, response.status)
+              return { id: productId, sizes: [] }
             }
-            return { id: productId, sizes: [] }
-          } catch {
+          } catch (error) {
+            console.error(`Error fetching stock for product ${productId}:`, error)
             return { id: productId, sizes: [] }
           }
         })
@@ -64,7 +81,7 @@ export default function CartPage() {
         setProductStocks(stockMap)
 
         // Actualizar stock en el carrito
-        items.forEach((item) => {
+        validItems.forEach((item) => {
           const productSizes = stockMap[item.productId] || []
           const sizeStock = item.size
             ? productSizes.find((s) => s.size === item.size)
@@ -120,7 +137,9 @@ export default function CartPage() {
     setIsValidatingStock(true)
 
     try {
-      const productIds = [...new Set(items.map((item) => item.productId))]
+      // Filtrar items válidos con productId
+      const validItems = items.filter((item) => item.productId)
+      const productIds = [...new Set(validItems.map((item) => item.productId))]
 
       const stockPromises = productIds.map(async (productId) => {
         try {
@@ -145,7 +164,7 @@ export default function CartPage() {
       setProductStocks(stockMap)
 
       // Actualizar stock en el carrito
-      items.forEach((item) => {
+      validItems.forEach((item) => {
         const productSizes = stockMap[item.productId] || []
         const sizeStock = item.size
           ? productSizes.find((s) => s.size === item.size)
@@ -171,7 +190,7 @@ export default function CartPage() {
     }
 
     // Verificar que hay productos con stock disponible
-    const itemsWithStock = items.filter((item) => item.stock > 0)
+    const itemsWithStock = items.filter((item) => item.stock > 0 && item.productId)
     if (itemsWithStock.length === 0) {
       toast.error("No hay productos disponibles en tu carrito")
       return
@@ -233,6 +252,9 @@ export default function CartPage() {
   const hasOutOfStockItems = items.some((item) => isItemOutOfStock(item))
   const hasExcessQuantities = items.some((item) => isQuantityExceedsStock(item))
 
+  // Filtrar items válidos para mostrar
+  const validItems = items.filter((item) => item.productId)
+
   return (
     <div className="min-h-screen flex flex-col">
       <StoreHeader />
@@ -278,7 +300,7 @@ export default function CartPage() {
             </div>
           )}
 
-          {items.length === 0 ? (
+          {validItems.length === 0 ? (
             <div className="text-center py-12">
               <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h2 className="text-xl font-medium mb-2">Tu carrito está vacío</h2>
@@ -295,7 +317,7 @@ export default function CartPage() {
                     <h2 className="text-lg font-bold mb-4">Productos</h2>
 
                     <div className="space-y-6">
-                      {items.map((item) => {
+                      {validItems.map((item) => {
                         const isOutOfStock = isItemOutOfStock(item)
                         const quantityExceedsStock = isQuantityExceedsStock(item)
 
@@ -409,8 +431,8 @@ export default function CartPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span>
-                        Subtotal ({items.filter((item) => item.stock > 0).length}{" "}
-                        {items.filter((item) => item.stock > 0).length === 1 ? "producto" : "productos"})
+                        Subtotal ({validItems.filter((item) => item.stock > 0).length}{" "}
+                        {validItems.filter((item) => item.stock > 0).length === 1 ? "producto" : "productos"})
                       </span>
                       <span>{formatPrice(subtotal)}</span>
                     </div>
@@ -458,7 +480,7 @@ export default function CartPage() {
                       isCheckingOut ||
                       status === "loading" ||
                       isValidatingStock ||
-                      items.filter((item) => item.stock > 0).length === 0
+                      validItems.filter((item) => item.stock > 0).length === 0
                     }
                   >
                     {isCheckingOut ? (
@@ -471,7 +493,7 @@ export default function CartPage() {
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Verificando...
                       </>
-                    ) : items.filter((item) => item.stock > 0).length === 0 ? (
+                    ) : validItems.filter((item) => item.stock > 0).length === 0 ? (
                       "Sin productos disponibles"
                     ) : (
                       "Finalizar Compra"

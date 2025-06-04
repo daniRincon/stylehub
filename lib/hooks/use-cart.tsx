@@ -11,7 +11,7 @@ export interface CartItem {
   image: string
   size?: string
   quantity: number
-  stock: number // Usamos stock en lugar de maxStock
+  stock: number
 }
 
 interface CartState {
@@ -29,6 +29,12 @@ type CartAction =
 const cartReducer = (state: CartState, action: CartAction): CartState => {
   switch (action.type) {
     case "ADD_ITEM": {
+      // Validar que el item tenga productId
+      if (!action.payload.productId) {
+        console.error("Cannot add item without productId:", action.payload)
+        return state
+      }
+
       const existingItem = state.items.find((item) => item.id === action.payload.id)
 
       if (existingItem) {
@@ -82,9 +88,18 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
       }
 
     case "LOAD_CART":
+      // Filtrar items que no tengan productId válido
+      const validItems = action.payload.filter((item) => {
+        if (!item.productId) {
+          console.warn("Removing invalid cart item without productId:", item)
+          return false
+        }
+        return true
+      })
+
       return {
         ...state,
-        items: action.payload,
+        items: validItems,
       }
 
     default:
@@ -119,6 +134,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: "LOAD_CART", payload: parsedCart })
       } catch (error) {
         console.error("Error al cargar el carrito:", error)
+        // Limpiar localStorage si hay error
+        localStorage.removeItem("cart")
       }
     }
   }, [])
@@ -131,6 +148,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [state.items, mounted])
 
   const addItem = (item: Omit<CartItem, "quantity"> & { quantity?: number }) => {
+    // Validar que el item tenga los campos requeridos
+    if (!item.productId) {
+      console.error("Cannot add item without productId:", item)
+      return
+    }
+
+    if (!item.name || !item.price) {
+      console.error("Cannot add item without name or price:", item)
+      return
+    }
+
     // Asegurarnos de que el stock sea un número válido
     const itemWithValidStock = {
       ...item,

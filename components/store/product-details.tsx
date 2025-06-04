@@ -65,6 +65,13 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
       return
     }
 
+    // Verificar que tenemos un productId válido
+    if (!product.id) {
+      toast.error("Error: ID del producto no válido")
+      console.error("Product ID is missing:", product)
+      return
+    }
+
     // Obtener la primera imagen o usar placeholder
     const imageUrl =
       product.images && product.images.length > 0 ? getImageUrl(product.images[0].url) : "/placeholder.svg"
@@ -74,14 +81,16 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
 
     const cartItem: CartItem = {
       id: selectedSize ? `${product.id}-${selectedSize}` : product.id,
-      productId: product.id,
+      productId: product.id, // Asegurarnos de que esto esté definido
       name: product.name,
       price: product.price,
       image: imageUrl,
       quantity,
       size: selectedSize,
-      stock: productStock, // Asegurarnos de pasar el stock correcto
+      stock: productStock,
     }
+
+    console.log("Adding item to cart:", cartItem) // Debug log
 
     addItem(cartItem)
     toast.success(`${product.name} añadido al carrito`)
@@ -114,6 +123,9 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
 
   // Asegurarnos de que el stock sea un número válido
   const productStock = typeof product.stock === "number" ? product.stock : 0
+
+  // Debug log para verificar el producto
+  console.log("Product in ProductDetails:", { id: product.id, name: product.name, stock: product.stock })
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
