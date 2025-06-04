@@ -121,7 +121,7 @@ export default function NuevoProductoPage() {
         const uploadFormData = new FormData()
         uploadFormData.append("file", file)
 
-        const uploadResponse = await fetch("/api/upload-blob", {
+        const uploadResponse = await fetch("/api/upload", {
           method: "POST",
           body: uploadFormData,
         })
@@ -163,9 +163,21 @@ export default function NuevoProductoPage() {
     setIsLoading(true)
 
     try {
-      // Validaciones
-      if (!formData.name || !formData.description || !formData.price || !formData.categoryId) {
-        toast.error("Por favor completa todos los campos obligatorios")
+      // Debug: Mostrar datos del formulario
+      console.log("Datos del formulario:", formData)
+      console.log("URLs de imágenes:", uploadedImageUrls)
+      console.log("Tallas del producto:", productSizes)
+
+      // Validaciones detalladas
+      const missingFields = []
+
+      if (!formData.name.trim()) missingFields.push("Nombre")
+      if (!formData.description.trim()) missingFields.push("Descripción")
+      if (!formData.price || Number.parseFloat(formData.price) <= 0) missingFields.push("Precio válido")
+      if (!formData.categoryId) missingFields.push("Categoría")
+
+      if (missingFields.length > 0) {
+        toast.error(`Campos faltantes: ${missingFields.join(", ")}`)
         return
       }
 
@@ -177,11 +189,16 @@ export default function NuevoProductoPage() {
       // Calcular stock total
       const totalStock = productSizes.reduce((sum, ps) => sum + ps.stock, 0)
 
+      if (totalStock === 0) {
+        toast.error("Debes configurar stock para al menos una talla")
+        return
+      }
+
       // Crear producto
       const productData = {
-        name: formData.name,
-        slug: formData.slug,
-        description: formData.description,
+        name: formData.name.trim(),
+        slug: formData.slug.trim() || formData.name.toLowerCase().replace(/\s+/g, "-"),
+        description: formData.description.trim(),
         price: Number.parseFloat(formData.price),
         stock: totalStock,
         categoryId: formData.categoryId,
@@ -191,6 +208,8 @@ export default function NuevoProductoPage() {
         sizes: productSizes.filter((ps) => ps.stock > 0), // Solo tallas con stock
       }
 
+      console.log("Datos a enviar:", productData)
+
       const response = await fetch("/api/products", {
         method: "POST",
         headers: {
@@ -199,15 +218,17 @@ export default function NuevoProductoPage() {
         body: JSON.stringify(productData),
       })
 
+      const responseData = await response.json()
+      console.log("Respuesta del servidor:", responseData)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Error al crear producto")
+        throw new Error(responseData.error || `Error ${response.status}: ${response.statusText}`)
       }
 
       toast.success("Producto creado exitosamente")
       router.push("/admin/productos")
     } catch (error: any) {
-      console.error("Error al crear producto:", error)
+      console.error("Error completo:", error)
       toast.error(error.message || "Error al crear producto")
     } finally {
       setIsLoading(false)
@@ -220,6 +241,35 @@ export default function NuevoProductoPage() {
         <h1 className="text-2xl font-bold">Nuevo Producto</h1>
         <p className="text-muted-foreground">Crea un nuevo producto para tu tienda</p>
       </div>
+
+      {/* Debug info */}
+      {process.env.NODE_ENV === "development" && (
+        <Card className="mb-6 bg-yellow-50 border-yellow-200">
+          <CardHeader>
+            <CardTitle className="text-sm">Debug Info</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs">
+            <p>
+              <strong>Nombre:</strong> {formData.name || "Vacío"}
+            </p>
+            <p>
+              <strong>Descripción:</strong> {formData.description || "Vacío"}
+            </p>
+            <p>
+              <strong>Precio:</strong> {formData.price || "Vacío"}
+            </p>
+            <p>
+              <strong>Categoría:</strong> {formData.categoryId || "No seleccionada"}
+            </p>
+            <p>
+              <strong>Imágenes subidas:</strong> {uploadedImageUrls.length}
+            </p>
+            <p>
+              <strong>Stock total:</strong> {productSizes.reduce((sum, ps) => sum + ps.stock, 0)}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -238,7 +288,9 @@ export default function NuevoProductoPage() {
                   onChange={handleInputChange}
                   placeholder="Ej: Camiseta básica algodón"
                   required
+                  className={!formData.name.trim() ? "border-red-300" : ""}
                 />
+                {!formData.name.trim() && <p className="text-sm text-red-500 mt-1">Este campo es obligatorio</p>}
               </div>
 
               <div>
@@ -262,7 +314,9 @@ export default function NuevoProductoPage() {
                   placeholder="Describe las características del producto..."
                   rows={4}
                   required
+                  className={!formData.description.trim() ? "border-red-300" : ""}
                 />
+                {!formData.description.trim() && <p className="text-sm text-red-500 mt-1">Este campo es obligatorio</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -273,11 +327,16 @@ export default function NuevoProductoPage() {
                     name="price"
                     type="number"
                     step="0.01"
+                    min="0.01"
                     value={formData.price}
                     onChange={handleInputChange}
                     placeholder="0.00"
                     required
+                    className={!formData.price || Number.parseFloat(formData.price) <= 0 ? "border-red-300" : ""}
                   />
+                  {(!formData.price || Number.parseFloat(formData.price) <= 0) && (
+                    <p className="text-sm text-red-500 mt-1">Precio debe ser mayor a 0</p>
+                  )}
                 </div>
 
                 <div>
@@ -286,7 +345,7 @@ export default function NuevoProductoPage() {
                     value={formData.categoryId}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, categoryId: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={!formData.categoryId ? "border-red-300" : ""}>
                       <SelectValue placeholder="Seleccionar categoría" />
                     </SelectTrigger>
                     <SelectContent>
@@ -297,6 +356,7 @@ export default function NuevoProductoPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {!formData.categoryId && <p className="text-sm text-red-500 mt-1">Selecciona una categoría</p>}
                 </div>
               </div>
 
@@ -382,6 +442,9 @@ export default function NuevoProductoPage() {
                     <p className="text-sm font-medium">
                       Stock total: {productSizes.reduce((sum, ps) => sum + ps.stock, 0)} unidades
                     </p>
+                    {productSizes.reduce((sum, ps) => sum + ps.stock, 0) === 0 && (
+                      <p className="text-sm text-red-500 mt-1">Debes configurar stock para al menos una talla</p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -399,7 +462,7 @@ export default function NuevoProductoPage() {
           <CardContent>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="images">Subir imágenes (máximo 4)</Label>
+                <Label htmlFor="images">Subir imágenes (máximo 4) *</Label>
                 <div className="flex items-center gap-2">
                   <Input
                     id="images"
@@ -408,7 +471,7 @@ export default function NuevoProductoPage() {
                     accept="image/*"
                     onChange={handleImageChange}
                     disabled={selectedImages.length >= 4 || isUploadingImages}
-                    className="flex-1"
+                    className={`flex-1 ${uploadedImageUrls.length === 0 ? "border-red-300" : ""}`}
                   />
                   {isUploadingImages && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -417,6 +480,9 @@ export default function NuevoProductoPage() {
                     </div>
                   )}
                 </div>
+                {uploadedImageUrls.length === 0 && (
+                  <p className="text-sm text-red-500 mt-1">Debes subir al menos una imagen</p>
+                )}
               </div>
 
               {imagePreviews.length > 0 && (
