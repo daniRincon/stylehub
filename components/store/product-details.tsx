@@ -7,7 +7,6 @@ import { toast } from "sonner"
 import { useCart } from "@/lib/hooks/use-cart"
 import { formatPrice } from "@/lib/utils"
 import type { Product } from "@/lib/types"
-import type { CartItem } from "@/lib/hooks/use-cart"
 import Image from "next/image"
 
 interface ProductDetailsProps {
@@ -133,10 +132,18 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
   }
 
   const handleAddToCart = () => {
-    console.log("handleAddToCart called")
+    console.log("=== HANDLE ADD TO CART START ===")
+    console.log("Product object:", product)
     console.log("Product ID:", product.id)
     console.log("Available stock:", availableStock)
     console.log("Selected size:", selectedSize)
+
+    // Verificar que tenemos un productId válido
+    if (!product.id) {
+      console.error("Product ID is missing or invalid:", product.id)
+      toast.error("Error: ID del producto no válido")
+      return
+    }
 
     const categorySlug = typeof product.category === "string" ? product.category : product.category?.slug
 
@@ -158,32 +165,43 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
       return
     }
 
-    if (!product.id) {
-      toast.error("Error: ID del producto no válido")
-      return
-    }
-
     const imageUrl =
       product.images && product.images.length > 0 ? getImageUrl(product.images[0].url) : "/placeholder.svg"
 
     // Crear ID único para el carrito
     const cartItemId = selectedSize ? `${product.id}-${selectedSize}` : product.id
 
-    const cartItem: CartItem = {
+    // IMPORTANTE: Crear el objeto con TODAS las propiedades requeridas
+    const cartItem = {
       id: cartItemId,
-      productId: product.id,
+      productId: product.id, // ¡ESTA ES LA CLAVE!
       name: product.name,
       price: product.price,
       image: imageUrl,
-      quantity,
+      quantity: quantity,
       size: selectedSize,
       stock: availableStock,
     }
 
-    console.log("Cart item to add:", cartItem)
+    console.log("=== CART ITEM TO ADD ===")
+    console.log("Cart item object:", cartItem)
+    console.log("Cart item productId:", cartItem.productId)
+    console.log("Cart item keys:", Object.keys(cartItem))
+    console.log("=== END CART ITEM ===")
 
+    // Verificar que el objeto tiene productId antes de enviarlo
+    if (!cartItem.productId) {
+      console.error("CRITICAL ERROR: cartItem.productId is missing!")
+      console.error("Product object:", product)
+      console.error("Cart item object:", cartItem)
+      toast.error("Error crítico: No se puede añadir el producto")
+      return
+    }
+
+    console.log("Calling addItem with:", cartItem)
     addItem(cartItem)
     toast.success(`${product.name} añadido al carrito`)
+    console.log("=== HANDLE ADD TO CART END ===")
   }
 
   // Renderizar estrellas para la calificación
@@ -296,6 +314,8 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
             <strong>Debug:</strong>
           </p>
           <p>Product ID: {product.id}</p>
+          <p>Product ID type: {typeof product.id}</p>
+          <p>Product ID exists: {product.id ? "YES" : "NO"}</p>
           <p>Has sizes: {hasSizes ? "Sí" : "No"}</p>
           <p>Available stock: {availableStock}</p>
           <p>Selected size: {selectedSize || "Ninguna"}</p>

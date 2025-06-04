@@ -27,15 +27,24 @@ type CartAction =
   | { type: "UPDATE_STOCK"; payload: { id: string; stock: number } }
 
 const cartReducer = (state: CartState, action: CartAction): CartState => {
-  console.log("Cart reducer action:", action.type, "payload" in action ? action.payload : "no payload")
+  console.log("=== CART REDUCER ===")
+  console.log("Action type:", action.type)
+  if ("payload" in action) {
+    console.log("Action payload:", action.payload)
+  }
 
   switch (action.type) {
     case "ADD_ITEM": {
+      console.log("ADD_ITEM - Payload received:", action.payload)
+
       // Validar que el item tenga productId
       if (!action.payload.productId) {
-        console.error("Cannot add item without productId:", action.payload)
+        console.error("❌ Cannot add item without productId:", action.payload)
+        console.error("❌ Payload keys:", Object.keys(action.payload))
         return state
       }
+
+      console.log("✅ ProductId found:", action.payload.productId)
 
       const existingItem = state.items.find((item) => item.id === action.payload.id)
       console.log("Existing item found:", existingItem)
@@ -51,7 +60,7 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
           items: state.items.map((item) => (item.id === action.payload.id ? { ...item, quantity: maxAllowed } : item)),
         }
 
-        console.log("Updated cart state:", updatedState)
+        console.log("✅ Updated cart state:", updatedState)
         return updatedState
       }
 
@@ -67,14 +76,15 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
         stock: action.payload.stock,
       }
 
-      console.log("Creating new cart item:", newItem)
+      console.log("✅ Creating new cart item:", newItem)
+      console.log("✅ New item productId:", newItem.productId)
 
       const newState = {
         ...state,
         items: [...state.items, newItem],
       }
 
-      console.log("New cart state with added item:", newState)
+      console.log("✅ New cart state with added item:", newState)
       return newState
     }
 
@@ -118,29 +128,16 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
 
     case "LOAD_CART":
       console.log("Loading cart from localStorage:", action.payload)
-      // Filtrar items que no tengan productId válido y migrar items antiguos
-      const validItems = action.payload
-        .map((item) => {
-          // Si el item no tiene productId pero tiene id, intentar migrarlo
-          if (!item.productId && item.id) {
-            // Extraer productId del id del carrito (formato: productId-size o solo productId)
-            const productId = item.id.includes("-") ? item.id.split("-")[0] : item.id
-            if (productId) {
-              console.log("Migrating cart item:", { old: item.id, productId })
-              return { ...item, productId }
-            }
-          }
-          return item
-        })
-        .filter((item) => {
-          if (!item.productId) {
-            console.warn("Removing invalid cart item without productId:", item)
-            return false
-          }
-          return true
-        })
+      // Filtrar items que no tengan productId válido
+      const validItems = action.payload.filter((item) => {
+        if (!item.productId) {
+          console.warn("❌ Removing invalid cart item without productId:", item)
+          return false
+        }
+        return true
+      })
 
-      console.log("Valid items after filtering:", validItems)
+      console.log("✅ Valid items after filtering:", validItems)
       return {
         ...state,
         items: validItems,
@@ -181,7 +178,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: "LOAD_CART", payload: parsedCart })
       } catch (error) {
         console.error("Error al cargar el carrito:", error)
-        // Limpiar localStorage si hay error
         localStorage.removeItem("cart")
       }
     }
@@ -190,22 +186,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Guardar carrito en localStorage cuando cambie
   useEffect(() => {
     if (mounted) {
-      console.log("Saving cart to localStorage:", state.items)
+      console.log("💾 Saving cart to localStorage:", state.items)
       localStorage.setItem("cart", JSON.stringify(state.items))
     }
   }, [state.items, mounted])
 
   const addItem = (item: Omit<CartItem, "quantity"> & { quantity?: number }) => {
-    console.log("addItem called with:", item)
+    console.log("=== ADD ITEM FUNCTION ===")
+    console.log("📦 addItem called with:", item)
+    console.log("📦 Item keys:", Object.keys(item))
+    console.log("📦 Item productId:", item.productId)
 
     // Validar que el item tenga los campos requeridos
     if (!item.productId) {
-      console.error("Cannot add item without productId:", item)
+      console.error("❌ Cannot add item without productId:", item)
       return
     }
 
     if (!item.name || !item.price) {
-      console.error("Cannot add item without name or price:", item)
+      console.error("❌ Cannot add item without name or price:", item)
       return
     }
 
@@ -215,7 +214,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       stock: typeof item.stock === "number" ? item.stock : 0,
     }
 
-    console.log("Adding item to cart with valid stock:", itemWithValidStock)
+    console.log("✅ Adding item to cart with valid stock:", itemWithValidStock)
+    console.log("✅ Final item productId:", itemWithValidStock.productId)
 
     dispatch({ type: "ADD_ITEM", payload: itemWithValidStock })
   }
@@ -246,13 +246,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const getTotalItems = () => {
     const total = state.items.reduce((total, item) => total + item.quantity, 0)
-    console.log("getTotalItems:", total)
     return total
   }
 
   const getTotalPrice = () => {
     const total = state.items.reduce((total, item) => total + item.price * item.quantity, 0)
-    console.log("getTotalPrice:", total)
     return total
   }
 
@@ -268,7 +266,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Log del estado actual del carrito
-  console.log("Current cart state:", state.items)
+  console.log("🛒 Current cart state:", state.items)
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
