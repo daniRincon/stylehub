@@ -1,200 +1,128 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { useEffect, useState } from "react"
-import { ShoppingCart, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ShoppingCart } from "lucide-react"
 import { useCart } from "@/lib/hooks/use-cart"
 import { formatPrice } from "@/lib/utils"
+import { toast } from "sonner"
 import type { Product } from "@/lib/types"
 import type { CartItem } from "@/lib/hooks/use-cart"
-import { toast } from "sonner"
 
 export default function FeaturedProducts() {
-  const { addItem } = useCart()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [addedProductId, setAddedProductId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { addItem } = useCart()
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchFeaturedProducts = async () => {
       try {
-        const res = await fetch("/api/products?limit=4&sort=createdAt&order=desc")
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`)
-        }
-        const data = await res.json()
-
-        // Manejar tanto la estructura nueva como la anterior
-        const productsArray = data.products || data.data || []
-        setProducts(productsArray)
-
-        console.log("Productos cargados:", productsArray)
-      } catch (error: any) {
-        console.error("Error cargando productos:", error)
-        setError("Hubo un error al cargar los productos. Intenta nuevamente más tarde.")
+        const response = await fetch("/api/products?featured=true&limit=4")
+        if (!response.ok) throw new Error("Error al cargar productos destacados")
+        const data = await response.json()
+        setProducts(data.products || [])
+      } catch (error) {
+        console.error("Error:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchProducts()
+    fetchFeaturedProducts()
   }, [])
 
-  // Función para obtener la primera imagen del producto
-  const getProductImage = (product: Product) => {
-    // Nuevo formato: array de strings
-    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
-      // Si es un array de strings
-      if (typeof product.images[0] === "string") {
-        return product.images[0]
-      }
-      // Si es un array de objetos (formato anterior)
-      if (typeof product.images[0] === "object" && product.images[0]?.url) {
-        return product.images[0].url
-      }
-    }
-    return "/placeholder.svg?height=400&width=400"
-  }
-
   const handleAddToCart = (product: Product) => {
+    // Obtener la primera imagen o usar placeholder
+    const imageUrl = product.images && product.images.length > 0 ? product.images[0].url : "/placeholder.svg"
+
     const cartItem: CartItem = {
       id: product.id,
       name: product.name,
       price: product.price,
-      image: getProductImage(product),
+      image: imageUrl,
       quantity: 1,
+      slug: product.slug,
     }
 
     addItem(cartItem)
-    setAddedProductId(product.id)
-
     toast.success(`${product.name} añadido al carrito`)
-
-    setTimeout(() => {
-      setAddedProductId(null)
-    }, 3000)
   }
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="animate-pulse">
-            <div className="bg-gray-200 aspect-square rounded-lg mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-          </div>
-        ))}
+      <div className="container mx-auto px-4 py-12">
+        <h2 className="text-3xl font-bold text-center mb-8">Productos Destacados</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="border rounded-lg p-4 h-80 animate-pulse">
+              <div className="bg-gray-200 h-40 rounded-md mb-4"></div>
+              <div className="bg-gray-200 h-4 rounded w-3/4 mb-2"></div>
+              <div className="bg-gray-200 h-4 rounded w-1/2 mb-4"></div>
+              <div className="bg-gray-200 h-10 rounded"></div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
 
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-500 mb-4">{error}</p>
-        <Button onClick={() => window.location.reload()} variant="outline">
-          Reintentar
-        </Button>
-      </div>
-    )
-  }
-
-  if (!products || products.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">No hay productos destacados disponibles</p>
-      </div>
-    )
+  if (products.length === 0) {
+    return null
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      {products.map((product) => (
-        <div key={product.id} className="product-card group">
-          <div className="relative overflow-hidden rounded-lg">
-            <Link href={`/producto/${product.slug}`} aria-label={`Ver detalles de ${product.name}`}>
-              <Image
-                src={getProductImage(product) || "/placeholder.svg"}
-                alt={product.name}
-                width={400}
-                height={400}
-                className="w-full aspect-square object-cover transition-transform duration-300 group-hover:scale-105"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.src = "/placeholder.svg?height=400&width=400"
-                }}
-              />
-            </Link>
-            <div className="absolute top-2 right-2 flex flex-col gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="rounded-full bg-white h-8 w-8 shadow-md hover:shadow-lg transition-shadow"
-                aria-label="Añadir a favoritos"
-              >
-                <Heart className="h-4 w-4" />
-                <span className="sr-only">Añadir a favoritos</span>
-              </Button>
-            </div>
+    <div className="container mx-auto px-4 py-12">
+      <h2 className="text-3xl font-bold text-center mb-8">Productos Destacados</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {products.map((product) => {
+          // Obtener la primera imagen o usar placeholder
+          const mainImage = product.images && product.images.length > 0 ? product.images[0].url : "/placeholder.svg"
 
-            {/* Badge de género si está disponible */}
-            {product.gender && (
-              <div className="absolute top-2 left-2">
-                <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    product.gender === "MALE"
-                      ? "bg-blue-100 text-blue-800"
-                      : product.gender === "FEMALE"
-                        ? "bg-pink-100 text-pink-800"
-                        : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  {product.gender === "MALE" ? "Hombre" : product.gender === "FEMALE" ? "Mujer" : "Unisex"}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="p-4">
-            <Link href={`/producto/${product.slug}`} aria-label={`Ver detalles de ${product.name}`}>
-              <h3 className="font-medium mb-1 hover:text-gold transition-colors line-clamp-2">{product.name}</h3>
-            </Link>
-
-            {/* Categoría */}
-            {product.category && <p className="text-sm text-gray-500 mb-2">{product.category.name}</p>}
-
-            <p className="text-lg font-bold text-gold mb-3">{formatPrice(product.price)}</p>
-
-            {/* Stock disponible */}
-            {product.stock !== undefined && (
-              <p
-                className={`text-sm mb-3 ${
-                  product.stock > 10 ? "text-green-600" : product.stock > 0 ? "text-yellow-600" : "text-red-600"
-                }`}
-              >
-                {product.stock > 0 ? `${product.stock} disponibles` : "Agotado"}
-              </p>
-            )}
-
-            <Button
-              onClick={() => handleAddToCart(product)}
-              className="w-full bg-dark-green hover:bg-dark-green/90 text-white disabled:opacity-50"
-              disabled={product.stock === 0}
+          return (
+            <div
+              key={product.id}
+              className="border rounded-lg overflow-hidden bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-shadow"
             >
-              <ShoppingCart className="h-4 w-4 mr-2" />
-              {product.stock === 0 ? "Agotado" : "Añadir al carrito"}
-            </Button>
-
-            {addedProductId === product.id && (
-              <p className="mt-2 text-sm text-dark-green font-medium text-center">✓ Producto añadido al carrito</p>
-            )}
-          </div>
-        </div>
-      ))}
+              <div className="relative h-48">
+                <Link href={`/producto/${product.slug}`}>
+                  <Image
+                    src={mainImage || "/placeholder.svg"}
+                    alt={product.name}
+                    fill
+                    className="object-cover hover:scale-105 transition-transform duration-300"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.src = "/placeholder.svg?height=200&width=200&text=Sin+imagen"
+                    }}
+                  />
+                </Link>
+              </div>
+              <div className="p-4">
+                <Link href={`/producto/${product.slug}`}>
+                  <h3 className="font-semibold text-lg mb-1 hover:text-gold transition-colors">{product.name}</h3>
+                </Link>
+                <p className="text-gold font-bold mb-3">{formatPrice(product.price)}</p>
+                <Button
+                  onClick={() => handleAddToCart(product)}
+                  className="w-full bg-dark-green hover:bg-dark-green/90 text-white"
+                  disabled={product.stock <= 0}
+                >
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  {product.stock > 0 ? "Añadir al carrito" : "Agotado"}
+                </Button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div className="text-center mt-8">
+        <Button asChild variant="outline" className="border-gold text-gold hover:bg-gold/10">
+          <Link href="/tienda">Ver todos los productos</Link>
+        </Button>
+      </div>
     </div>
   )
 }
