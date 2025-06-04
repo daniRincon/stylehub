@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ShoppingCart, Heart, Minus, Plus, Check, Star, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
@@ -15,17 +15,29 @@ interface ProductDetailsProps {
   averageRating: number
 }
 
+interface SizeStock {
+  size: string | null
+  stock: number
+}
+
 export default function ProductDetails({ product, averageRating }: ProductDetailsProps) {
+  // Estados
+  const [quantity, setQuantity] = useState(1)
+  const [selectedSize, setSelectedSize] = useState<string | null>(null)
+  const [mainImage, setMainImage] = useState("")
+  const [sizeStocks, setSizeStocks] = useState<SizeStock[]>([])
+  const [availableStock, setAvailableStock] = useState(0)
+
+  const { addItem } = useCart()
+
   // Función para obtener la URL de imagen optimizada
   const getImageUrl = (imageUrl: string) => {
     if (!imageUrl) return "/placeholder.svg?height=400&width=400&text=Sin+imagen"
 
-    // Si es una URL de Vercel Blob, la usamos directamente
     if (imageUrl.includes("blob.vercel-storage.com") || imageUrl.includes("vercel.app")) {
       return imageUrl
     }
 
-    // Si es una URL relativa, la usamos tal como está
     if (imageUrl.startsWith("/")) {
       return imageUrl
     }
@@ -33,17 +45,60 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
     return imageUrl
   }
 
-  // Obtener la primera imagen o usar placeholder
-  const firstImage =
-    product.images && product.images.length > 0
-      ? getImageUrl(product.images[0].url)
-      : "/placeholder.svg?height=400&width=400&text=Sin+imagen"
+  // Inicializar imagen principal
+  useEffect(() => {
+    const firstImage =
+      product.images && product.images.length > 0
+        ? getImageUrl(product.images[0].url)
+        : "/placeholder.svg?height=400&width=400&text=Sin+imagen"
+    setMainImage(firstImage)
+  }, [product.images])
 
-  const [quantity, setQuantity] = useState(1)
-  const [selectedSize, setSelectedSize] = useState<string | null>(null)
-  const [mainImage, setMainImage] = useState(firstImage)
+  // Obtener stock del producto
+  useEffect(() => {
+    const fetchStock = async () => {
+      try {
+        const response = await fetch(`/api/products/${product.id}/stock`)
+        if (response.ok) {
+          const stockData = await response.json()
+          setSizeStocks(stockData.sizes || [])
 
-  const { addItem } = useCart()
+          // Si no hay tallas, usar el stock general
+          if (!stockData.hasSizes) {
+            setAvailableStock(stockData.totalStock || product.stock || 0)
+          }
+        } else {
+          // Fallback al stock del producto
+          setAvailableStock(product.stock || 0)
+          setSizeStocks([{ size: null, stock: product.stock || 0 }])
+        }
+      } catch (error) {
+        console.error("Error fetching stock:", error)
+        setAvailableStock(product.stock || 0)
+        setSizeStocks([{ size: null, stock: product.stock || 0 }])
+      }
+    }
+
+    if (product.id) {
+      fetchStock()
+    }
+  }, [product.id, product.stock])
+
+  // Actualizar stock disponible cuando cambie la talla seleccionada
+  useEffect(() => {
+    if (sizeStocks.length > 0) {
+      if (selectedSize) {
+        const sizeStock = sizeStocks.find((s) => s.size === selectedSize)
+        setAvailableStock(sizeStock?.stock || 0)
+      } else if (sizeStocks.length === 1 && sizeStocks[0].size === null) {
+        // Producto sin tallas
+        setAvailableStock(sizeStocks[0].stock)
+      } else {
+        // Si hay tallas pero no se ha seleccionado ninguna
+        setAvailableStock(0)
+      }
+    }
+  }, [selectedSize, sizeStocks])
 
   const decreaseQuantity = () => {
     if (quantity > 1) {
@@ -52,7 +107,7 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
   }
 
   const increaseQuantity = () => {
-    if (quantity < product.stock) {
+    if (quantity < availableStock) {
       setQuantity(quantity + 1)
     }
   }
@@ -60,40 +115,43 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
   const handleAddToCart = () => {
     const categorySlug = typeof product.category === "string" ? product.category : product.category?.slug
 
-    if (!selectedSize && categorySlug !== "gorras" && categorySlug !== "accesorios") {
+    // Verificar si necesita talla
+    const needsSize = categorySlug !== "gorras" && categorySlug !== "accesorios"
+    const hasSizes = sizeStocks.some((s) => s.size !== null)
+
+    if (needsSize && hasSizes && !selectedSize) {
       toast.error("Por favor selecciona una talla")
       return
     }
 
-    // Verificar que tenemos un productId válido
-    if (!product.id) {
-      toast.error("Error: ID del producto no válido")
-      console.error("Product ID is missing:", product)
+    if (availableStock <= 0) {
+      toast.error("Producto sin stock disponible")
       return
     }
 
-    // Obtener la primera imagen o usar placeholder
+    if (!product.id) {
+      toast.error("Error: ID del producto no válido")
+      return
+    }
+
     const imageUrl =
       product.images && product.images.length > 0 ? getImageUrl(product.images[0].url) : "/placeholder.svg"
 
-    // Asegurarnos de que el stock sea un número válido
-    const productStock = typeof product.stock === "number" ? product.stock : 0
-
-    // Crear el ID único para el carrito (producto + talla si aplica)
+    // Crear ID único para el carrito
     const cartItemId = selectedSize ? `${product.id}-${selectedSize}` : product.id
 
     const cartItem: CartItem = {
-      id: cartItemId, // ID único para el carrito
-      productId: product.id, // ID del producto en la base de datos
+      id: cartItemId,
+      productId: product.id,
       name: product.name,
       price: product.price,
       image: imageUrl,
       quantity,
       size: selectedSize,
-      stock: productStock,
+      stock: availableStock,
     }
 
-    console.log("Adding item to cart:", cartItem) // Debug log
+    console.log("Adding item to cart:", cartItem)
 
     addItem(cartItem)
     toast.success(`${product.name} añadido al carrito`)
@@ -106,7 +164,7 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
     ))
   }
 
-  // Obtener el slug de la categoría
+  // Obtener información de la categoría
   const getCategorySlug = () => {
     if (typeof product.category === "string") {
       return product.category
@@ -114,7 +172,6 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
     return product.category?.slug || ""
   }
 
-  // Obtener el nombre de la categoría
   const getCategoryName = () => {
     if (typeof product.category === "string") {
       return product.category
@@ -123,17 +180,7 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
   }
 
   const categorySlug = getCategorySlug()
-
-  // Asegurarnos de que el stock sea un número válido
-  const productStock = typeof product.stock === "number" ? product.stock : 0
-
-  // Debug log para verificar el producto
-  console.log("Product in ProductDetails:", {
-    id: product.id,
-    name: product.name,
-    stock: product.stock,
-    fullProduct: product,
-  })
+  const hasSizes = sizeStocks.some((s) => s.size !== null)
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -181,7 +228,7 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
               )
             })}
 
-          {/* Mostrar placeholders si hay menos de 4 imágenes */}
+          {/* Placeholders para imágenes faltantes */}
           {(!product.images || product.images.length < 4) &&
             Array.from({ length: 4 - (product.images?.length || 0) }).map((_, i) => (
               <div
@@ -212,32 +259,24 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
           <p className="text-muted-foreground">{product.description}</p>
         </div>
 
-        {/* Selector de tallas (solo para ciertas categorías) */}
-        {categorySlug !== "gorras" && categorySlug !== "accesorios" && (
+        {/* Selector de tallas */}
+        {hasSizes && categorySlug !== "gorras" && categorySlug !== "accesorios" && (
           <div className="mb-6">
             <h3 className="font-medium mb-2">Talla:</h3>
             <div className="flex flex-wrap gap-2">
-              {categorySlug === "zapatos"
-                ? ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45"].map((size) => (
-                    <Button
-                      key={size}
-                      variant={selectedSize === size ? "default" : "outline"}
-                      className={selectedSize === size ? "bg-dark-green hover:bg-dark-green/90 text-white" : ""}
-                      onClick={() => setSelectedSize(size)}
-                    >
-                      {size}
-                    </Button>
-                  ))
-                : ["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
-                    <Button
-                      key={size}
-                      variant={selectedSize === size ? "default" : "outline"}
-                      className={selectedSize === size ? "bg-dark-green hover:bg-dark-green/90 text-white" : ""}
-                      onClick={() => setSelectedSize(size)}
-                    >
-                      {size}
-                    </Button>
-                  ))}
+              {sizeStocks
+                .filter((s) => s.size !== null)
+                .map((sizeStock) => (
+                  <Button
+                    key={sizeStock.size}
+                    variant={selectedSize === sizeStock.size ? "default" : "outline"}
+                    className={selectedSize === sizeStock.size ? "bg-dark-green hover:bg-dark-green/90 text-white" : ""}
+                    onClick={() => setSelectedSize(sizeStock.size)}
+                    disabled={sizeStock.stock === 0}
+                  >
+                    {sizeStock.size} {sizeStock.stock === 0 && "(Agotado)"}
+                  </Button>
+                ))}
             </div>
           </div>
         )}
@@ -249,7 +288,7 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
               <Minus className="h-4 w-4" />
             </Button>
             <span className="mx-4 w-8 text-center">{quantity}</span>
-            <Button variant="outline" size="icon" onClick={increaseQuantity} disabled={quantity >= productStock}>
+            <Button variant="outline" size="icon" onClick={increaseQuantity} disabled={quantity >= availableStock}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -259,10 +298,10 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
           <Button
             onClick={handleAddToCart}
             className="flex-1 bg-dark-green hover:bg-dark-green/90 text-white"
-            disabled={productStock <= 0}
+            disabled={availableStock <= 0}
           >
             <ShoppingCart className="h-4 w-4 mr-2" />
-            {productStock > 0 ? "Añadir al carrito" : "Agotado"}
+            {availableStock > 0 ? "Añadir al carrito" : "Agotado"}
           </Button>
           <Button variant="outline" size="icon">
             <Heart className="h-4 w-4" />
@@ -271,15 +310,18 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
         </div>
 
         <div className="flex items-center text-sm text-muted-foreground">
-          {productStock > 0 ? (
+          {availableStock > 0 ? (
             <>
               <Check className="h-4 w-4 mr-2 text-green-500" />
-              <span>Disponible: {productStock} en stock</span>
+              <span>
+                Disponible: {availableStock} en stock
+                {selectedSize && ` (Talla ${selectedSize})`}
+              </span>
             </>
           ) : (
             <>
               <X className="h-4 w-4 mr-2 text-red-500" />
-              <span>Agotado</span>
+              <span>Agotado{selectedSize && ` (Talla ${selectedSize})`}</span>
             </>
           )}
         </div>

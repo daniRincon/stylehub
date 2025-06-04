@@ -16,12 +16,16 @@ import StoreFooter from "@/components/store/store-footer"
 import Image from "next/image"
 
 interface SizeStock {
-  size: string
+  size: string | null
   stock: number
 }
 
 interface ProductStockInfo {
-  [productId: string]: SizeStock[]
+  [productId: string]: {
+    sizes: SizeStock[]
+    hasSizes: boolean
+    totalStock: number
+  }
 }
 
 export default function CartPage() {
@@ -45,7 +49,6 @@ export default function CartPage() {
   // Validar stock de productos en el carrito
   useEffect(() => {
     const validateStock = async () => {
-      // Filtrar items válidos con productId
       const validItems = items.filter((item) => item.productId)
 
       if (validItems.length === 0) return
@@ -56,18 +59,22 @@ export default function CartPage() {
 
         const stockPromises = productIds.map(async (productId) => {
           try {
-            console.log("Fetching stock for productId:", productId) // Debug log
             const response = await fetch(`/api/products/${productId}/stock`)
             if (response.ok) {
               const data = await response.json()
-              return { id: productId, sizes: data.sizes || [] }
+              return {
+                id: productId,
+                sizes: data.sizes || [],
+                hasSizes: data.hasSizes || false,
+                totalStock: data.totalStock || 0,
+              }
             } else {
               console.error(`Failed to fetch stock for product ${productId}:`, response.status)
-              return { id: productId, sizes: [] }
+              return { id: productId, sizes: [], hasSizes: false, totalStock: 0 }
             }
           } catch (error) {
             console.error(`Error fetching stock for product ${productId}:`, error)
-            return { id: productId, sizes: [] }
+            return { id: productId, sizes: [], hasSizes: false, totalStock: 0 }
           }
         })
 
@@ -75,25 +82,35 @@ export default function CartPage() {
         const stockMap: ProductStockInfo = {}
 
         stockResults.forEach((result) => {
-          stockMap[result.id] = result.sizes
+          stockMap[result.id] = {
+            sizes: result.sizes,
+            hasSizes: result.hasSizes,
+            totalStock: result.totalStock,
+          }
         })
 
         setProductStocks(stockMap)
 
         // Actualizar stock en el carrito
         validItems.forEach((item) => {
-          const productSizes = stockMap[item.productId] || []
-          const sizeStock = item.size
-            ? productSizes.find((s) => s.size === item.size)
-            : { stock: productSizes.reduce((total, s) => total + s.stock, 0) }
+          const productStock = stockMap[item.productId]
+          if (!productStock) return
 
-          const availableStock = sizeStock?.stock || 0
+          let availableStock = 0
+
+          if (productStock.hasSizes && item.size) {
+            // Producto con tallas - buscar stock de la talla específica
+            const sizeStock = productStock.sizes.find((s) => s.size === item.size)
+            availableStock = sizeStock?.stock || 0
+          } else if (!productStock.hasSizes) {
+            // Producto sin tallas - usar stock total
+            availableStock = productStock.totalStock
+          }
 
           // Solo actualizar si el stock es diferente al actual
           if (item.stock !== availableStock) {
             updateItemStock(item.id, availableStock)
 
-            // Solo mostrar warning si la cantidad actual excede el stock
             if (item.quantity > availableStock && availableStock > 0) {
               toast.warning(`Stock actualizado para ${item.name}${item.size ? ` (${item.size})` : ""}`)
             }
@@ -123,12 +140,10 @@ export default function CartPage() {
     updateItemQuantity(id, quantity)
   }
 
-  // Función mejorada para verificar si un item está fuera de stock
   const isItemOutOfStock = (item: any) => {
     return item.stock === 0
   }
 
-  // Función para verificar si la cantidad excede el stock
   const isQuantityExceedsStock = (item: any) => {
     return item.quantity > item.stock && item.stock > 0
   }
@@ -137,7 +152,6 @@ export default function CartPage() {
     setIsValidatingStock(true)
 
     try {
-      // Filtrar items válidos con productId
       const validItems = items.filter((item) => item.productId)
       const productIds = [...new Set(validItems.map((item) => item.productId))]
 
@@ -146,11 +160,16 @@ export default function CartPage() {
           const response = await fetch(`/api/products/${productId}/stock`)
           if (response.ok) {
             const data = await response.json()
-            return { id: productId, sizes: data.sizes || [] }
+            return {
+              id: productId,
+              sizes: data.sizes || [],
+              hasSizes: data.hasSizes || false,
+              totalStock: data.totalStock || 0,
+            }
           }
-          return { id: productId, sizes: [] }
+          return { id: productId, sizes: [], hasSizes: false, totalStock: 0 }
         } catch {
-          return { id: productId, sizes: [] }
+          return { id: productId, sizes: [], hasSizes: false, totalStock: 0 }
         }
       })
 
@@ -158,19 +177,29 @@ export default function CartPage() {
       const stockMap: ProductStockInfo = {}
 
       stockResults.forEach((result) => {
-        stockMap[result.id] = result.sizes
+        stockMap[result.id] = {
+          sizes: result.sizes,
+          hasSizes: result.hasSizes,
+          totalStock: result.totalStock,
+        }
       })
 
       setProductStocks(stockMap)
 
       // Actualizar stock en el carrito
       validItems.forEach((item) => {
-        const productSizes = stockMap[item.productId] || []
-        const sizeStock = item.size
-          ? productSizes.find((s) => s.size === item.size)
-          : { stock: productSizes.reduce((total, s) => total + s.stock, 0) }
+        const productStock = stockMap[item.productId]
+        if (!productStock) return
 
-        const availableStock = sizeStock?.stock || 0
+        let availableStock = 0
+
+        if (productStock.hasSizes && item.size) {
+          const sizeStock = productStock.sizes.find((s) => s.size === item.size)
+          availableStock = sizeStock?.stock || 0
+        } else if (!productStock.hasSizes) {
+          availableStock = productStock.totalStock
+        }
+
         updateItemStock(item.id, availableStock)
       })
 
@@ -189,14 +218,12 @@ export default function CartPage() {
       return
     }
 
-    // Verificar que hay productos con stock disponible
     const itemsWithStock = items.filter((item) => item.stock > 0 && item.productId)
     if (itemsWithStock.length === 0) {
       toast.error("No hay productos disponibles en tu carrito")
       return
     }
 
-    // Verificar que las cantidades no excedan el stock
     const invalidQuantities = items.filter((item) => item.quantity > item.stock && item.stock > 0)
     if (invalidQuantities.length > 0) {
       toast.error("Algunas cantidades exceden el stock disponible. Por favor ajústalas.")
@@ -206,7 +233,6 @@ export default function CartPage() {
     setIsCheckingOut(true)
 
     try {
-      // Verificar si el usuario está autenticado
       if (status === "unauthenticated") {
         toast.error("Debes iniciar sesión para continuar")
         router.push("/login?callbackUrl=/checkout")
@@ -218,22 +244,17 @@ export default function CartPage() {
         return
       }
 
-      // Verificar que hay productos en el carrito
       if (!items || items.length === 0) {
         toast.error("No hay productos en el carrito")
         return
       }
 
-      // Verificar que todos los productos tienen precio
       const invalidItems = items.filter((item) => !item.price || item.price <= 0)
       if (invalidItems.length > 0) {
         toast.error("Algunos productos no tienen precio válido")
         return
       }
 
-      console.log("Redirecting to checkout with items:", items)
-
-      // Redirigir directamente usando router.push
       router.push("/checkout")
     } catch (error) {
       console.error("Error en checkout:", error)
@@ -244,15 +265,12 @@ export default function CartPage() {
   }
 
   const subtotal = getTotalPrice() || 0
-  const shipping = 0 // Envío gratis
-  const tax = subtotal * 0.19 // IVA 19%
+  const shipping = 0
+  const tax = subtotal * 0.19
   const total = subtotal + shipping + tax
 
-  // Solo considerar como problema si NO hay stock (stock = 0)
   const hasOutOfStockItems = items.some((item) => isItemOutOfStock(item))
   const hasExcessQuantities = items.some((item) => isQuantityExceedsStock(item))
-
-  // Filtrar items válidos para mostrar
   const validItems = items.filter((item) => item.productId)
 
   return (
@@ -453,7 +471,6 @@ export default function CartPage() {
                     <span>{formatPrice(total)}</span>
                   </div>
 
-                  {/* Mostrar estado de autenticación */}
                   {status === "unauthenticated" && (
                     <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <p className="text-sm text-yellow-800">
@@ -466,7 +483,6 @@ export default function CartPage() {
                     </div>
                   )}
 
-                  {/* Mostrar información sobre productos sin stock */}
                   {hasOutOfStockItems && (
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                       <p className="text-sm text-red-800">Los productos agotados no se incluirán en la compra</p>
