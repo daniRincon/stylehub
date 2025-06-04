@@ -27,7 +27,10 @@ model Customer {
   email             String    @unique
   name              String
   password          String
-  phone             String?
+  phone             String?   // Campo añadido
+  address           String?   // Campo añadido
+  city              String?   // Campo añadido
+  postalCode        String?   // Campo añadido
   emailVerified     DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -72,7 +75,7 @@ model Product {
   // Relaciones
   categoryId  String
   category    Category @relation(fields: [categoryId], references: [id])
-  images      ProductImage[] // Cambiado de String[] a relación
+  images      ProductImage[]
   orderItems  OrderItem[]
   reviews     Review[]
   wishlistItems WishlistItem[]
