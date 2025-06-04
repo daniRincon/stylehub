@@ -13,6 +13,7 @@ import { useCart } from "@/lib/hooks/use-cart"
 import { formatPrice } from "@/lib/utils"
 import StoreHeader from "@/components/store/store-header"
 import StoreFooter from "@/components/store/store-footer"
+import Image from "next/image"
 
 interface SizeStock {
   size: string
@@ -70,11 +71,15 @@ export default function CartPage() {
             : { stock: productSizes.reduce((total, s) => total + s.stock, 0) }
 
           const availableStock = sizeStock?.stock || 0
-          updateItemStock(item.id, availableStock)
 
-          // Solo mostrar warning si la cantidad actual excede el stock
-          if (item.quantity > availableStock && availableStock > 0) {
-            toast.warning(`Stock actualizado para ${item.name}${item.size ? ` (${item.size})` : ""}`)
+          // Solo actualizar si el stock es diferente al actual
+          if (item.stock !== availableStock) {
+            updateItemStock(item.id, availableStock)
+
+            // Solo mostrar warning si la cantidad actual excede el stock
+            if (item.quantity > availableStock && availableStock > 0) {
+              toast.warning(`Stock actualizado para ${item.name}${item.size ? ` (${item.size})` : ""}`)
+            }
           }
         })
       } catch (error) {
@@ -113,14 +118,50 @@ export default function CartPage() {
 
   const handleRefreshStock = async () => {
     setIsValidatingStock(true)
-    // Trigger stock validation
-    const event = new CustomEvent("refreshStock")
-    window.dispatchEvent(event)
 
-    setTimeout(() => {
+    try {
+      const productIds = [...new Set(items.map((item) => item.productId))]
+
+      const stockPromises = productIds.map(async (productId) => {
+        try {
+          const response = await fetch(`/api/products/${productId}/stock`)
+          if (response.ok) {
+            const data = await response.json()
+            return { id: productId, sizes: data.sizes || [] }
+          }
+          return { id: productId, sizes: [] }
+        } catch {
+          return { id: productId, sizes: [] }
+        }
+      })
+
+      const stockResults = await Promise.all(stockPromises)
+      const stockMap: ProductStockInfo = {}
+
+      stockResults.forEach((result) => {
+        stockMap[result.id] = result.sizes
+      })
+
+      setProductStocks(stockMap)
+
+      // Actualizar stock en el carrito
+      items.forEach((item) => {
+        const productSizes = stockMap[item.productId] || []
+        const sizeStock = item.size
+          ? productSizes.find((s) => s.size === item.size)
+          : { stock: productSizes.reduce((total, s) => total + s.stock, 0) }
+
+        const availableStock = sizeStock?.stock || 0
+        updateItemStock(item.id, availableStock)
+      })
+
+      toast.success("Stock actualizado correctamente")
+    } catch (error) {
+      console.error("Error refreshing stock:", error)
+      toast.error("Error al actualizar el stock")
+    } finally {
       setIsValidatingStock(false)
-      toast.success("Stock actualizado")
-    }, 1000)
+    }
   }
 
   const handleCheckout = async () => {
@@ -260,11 +301,18 @@ export default function CartPage() {
 
                         return (
                           <div key={item.id} className="flex flex-col sm:flex-row gap-4 p-4 border rounded-lg">
-                            <div className="w-full sm:w-24 h-24">
-                              <img
+                            <div className="w-full sm:w-24 h-24 relative">
+                              <Image
                                 src={item.image || "/placeholder.svg?height=96&width=96"}
                                 alt={item.name}
-                                className="w-full h-full object-cover rounded-md"
+                                fill
+                                className="object-cover rounded-md"
+                                sizes="(max-width: 768px) 100vw, 96px"
+                                unoptimized={item.image?.includes("blob.vercel-storage.com")}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement
+                                  target.src = "/placeholder.svg?height=96&width=96&text=Error"
+                                }}
                               />
                             </div>
                             <div className="flex-1">

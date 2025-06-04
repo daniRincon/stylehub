@@ -11,7 +11,7 @@ export interface CartItem {
   image: string
   size?: string
   quantity: number
-  stock: number // Cambiar de maxStock a stock
+  stock: number // Usamos stock en lugar de maxStock
 }
 
 interface CartState {
@@ -131,7 +131,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [state.items, mounted])
 
   const addItem = (item: Omit<CartItem, "quantity"> & { quantity?: number }) => {
-    dispatch({ type: "ADD_ITEM", payload: item })
+    // Asegurarnos de que el stock sea un número válido
+    const itemWithValidStock = {
+      ...item,
+      stock: typeof item.stock === "number" ? item.stock : 0,
+    }
+
+    dispatch({ type: "ADD_ITEM", payload: itemWithValidStock })
   }
 
   const removeItem = (id: string) => {

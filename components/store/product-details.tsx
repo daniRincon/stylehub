@@ -69,6 +69,9 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
     const imageUrl =
       product.images && product.images.length > 0 ? getImageUrl(product.images[0].url) : "/placeholder.svg"
 
+    // Asegurarnos de que el stock sea un número válido
+    const productStock = typeof product.stock === "number" ? product.stock : 0
+
     const cartItem: CartItem = {
       id: selectedSize ? `${product.id}-${selectedSize}` : product.id,
       productId: product.id,
@@ -77,7 +80,7 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
       image: imageUrl,
       quantity,
       size: selectedSize,
-      stock: product.stock, // Añadir stock del producto
+      stock: productStock, // Asegurarnos de pasar el stock correcto
     }
 
     addItem(cartItem)
@@ -108,6 +111,9 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
   }
 
   const categorySlug = getCategorySlug()
+
+  // Asegurarnos de que el stock sea un número válido
+  const productStock = typeof product.stock === "number" ? product.stock : 0
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -223,7 +229,7 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
               <Minus className="h-4 w-4" />
             </Button>
             <span className="mx-4 w-8 text-center">{quantity}</span>
-            <Button variant="outline" size="icon" onClick={increaseQuantity} disabled={quantity >= product.stock}>
+            <Button variant="outline" size="icon" onClick={increaseQuantity} disabled={quantity >= productStock}>
               <Plus className="h-4 w-4" />
             </Button>
           </div>
@@ -233,10 +239,10 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
           <Button
             onClick={handleAddToCart}
             className="flex-1 bg-dark-green hover:bg-dark-green/90 text-white"
-            disabled={product.stock <= 0}
+            disabled={productStock <= 0}
           >
             <ShoppingCart className="h-4 w-4 mr-2" />
-            {product.stock > 0 ? "Añadir al carrito" : "Agotado"}
+            {productStock > 0 ? "Añadir al carrito" : "Agotado"}
           </Button>
           <Button variant="outline" size="icon">
             <Heart className="h-4 w-4" />
@@ -245,10 +251,10 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
         </div>
 
         <div className="flex items-center text-sm text-muted-foreground">
-          {product.stock > 0 ? (
+          {productStock > 0 ? (
             <>
               <Check className="h-4 w-4 mr-2 text-green-500" />
-              <span>Disponible: {product.stock} en stock</span>
+              <span>Disponible: {productStock} en stock</span>
             </>
           ) : (
             <>
