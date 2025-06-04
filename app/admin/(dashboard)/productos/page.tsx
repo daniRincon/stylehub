@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { Package, Plus, Search, Edit, Trash2, MoreHorizontal, Loader2, Upload, X, ImageIcon } from "lucide-react"
+import { Package, Plus, Search, Edit, Trash2, MoreHorizontal, Loader2, Upload, X, ImageIcon, Eye } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -48,10 +48,11 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 
-// Tipos para los productos y la respuesta de la API
-interface ProductImage {
+// Tipos actualizados para el nuevo esquema
+interface ProductSize {
   id: string
-  url: string
+  size: string
+  stock: number
   productId: string
 }
 
@@ -61,6 +62,8 @@ interface Category {
   slug: string
 }
 
+type Gender = "HOMBRE" | "MUJER" | "UNISEX"
+
 interface Product {
   id: string
   name: string
@@ -69,8 +72,10 @@ interface Product {
   stock: number
   slug: string
   categoryId: string
+  gender: Gender
   category: Category
-  images: ProductImage[]
+  images: string[]
+  sizes: ProductSize[]
   createdAt: string
   updatedAt: string
 }
@@ -103,16 +108,32 @@ const formatPrice = (price: number) => {
   }).format(price)
 }
 
+// Obtener color del badge de género
+const getGenderBadgeColor = (gender: Gender) => {
+  switch (gender) {
+    case "HOMBRE":
+      return "bg-blue-100 text-blue-800 border-blue-200"
+    case "MUJER":
+      return "bg-pink-100 text-pink-800 border-pink-200"
+    case "UNISEX":
+      return "bg-gray-100 text-gray-800 border-gray-200"
+    default:
+      return "bg-gray-100 text-gray-800 border-gray-200"
+  }
+}
+
 export default function ProductosPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("")
+  const [genderFilter, setGenderFilter] = useState("")
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isImageSheetOpen, setIsImageSheetOpen] = useState(false)
+  const [isSizesDialogOpen, setIsSizesDialogOpen] = useState(false)
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -126,7 +147,6 @@ export default function ProductosPage() {
   const fetchProducts = async () => {
     setLoading(true)
     try {
-      // Construir la URL con los parámetros de consulta
       let url = `/api/products?page=${currentPage}&limit=${limit}`
 
       if (searchTerm) {
@@ -137,6 +157,10 @@ export default function ProductosPage() {
         url += `&category=${encodeURIComponent(categoryFilter)}`
       }
 
+      if (genderFilter && genderFilter !== "all") {
+        url += `&gender=${encodeURIComponent(genderFilter)}`
+      }
+
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -145,7 +169,6 @@ export default function ProductosPage() {
 
       const data: ApiResponse = await response.json()
 
-      // Validar que la respuesta tenga la estructura esperada
       if (data && data.products && Array.isArray(data.products)) {
         setProducts(data.products)
         setTotalPages(data.pagination?.pages || 1)
@@ -176,14 +199,11 @@ export default function ProductosPage() {
 
       const data = await response.json()
 
-      // Manejar tanto el formato nuevo como el anterior
       let categoriesArray: Category[] = []
 
       if (Array.isArray(data)) {
-        // Si la respuesta es directamente un array
         categoriesArray = data
       } else if (data && data.categories && Array.isArray(data.categories)) {
-        // Si la respuesta tiene una propiedad categories
         categoriesArray = data.categories
       } else {
         console.error("Estructura de respuesta de categorías inesperada:", data)
@@ -208,12 +228,12 @@ export default function ProductosPage() {
   // Cargar productos cuando cambien los filtros o la paginación
   useEffect(() => {
     fetchProducts()
-  }, [currentPage, limit, categoryFilter])
+  }, [currentPage, limit, categoryFilter, genderFilter])
 
   // Manejar la búsqueda con debounce
   useEffect(() => {
     const timer = setTimeout(() => {
-      setCurrentPage(1) // Resetear a la primera página al buscar
+      setCurrentPage(1)
       fetchProducts()
     }, 500)
 
@@ -234,9 +254,7 @@ export default function ProductosPage() {
         throw new Error(errorData.error || "Error al eliminar el producto")
       }
 
-      // Actualizar la lista de productos
       setProducts(products.filter((product) => product.id !== deleteProductId))
-
       toast.success("El producto ha sido eliminado correctamente")
     } catch (error) {
       console.error("Error al eliminar producto:", error)
@@ -247,12 +265,20 @@ export default function ProductosPage() {
     }
   }
 
-  // Obtener la imagen principal del producto o una imagen por defecto
+  // Obtener la imagen principal del producto
   const getProductImage = (product: Product) => {
     if (product.images && product.images.length > 0) {
-      return product.images[0].url
+      return product.images[0]
     }
     return "/placeholder.svg?height=400&width=300"
+  }
+
+  // Calcular stock total de todas las tallas
+  const getTotalStock = (product: Product) => {
+    if (product.sizes && product.sizes.length > 0) {
+      return product.sizes.reduce((total, size) => total + size.stock, 0)
+    }
+    return product.stock || 0
   }
 
   // Manejar la selección de archivos
@@ -268,7 +294,6 @@ export default function ProductosPage() {
         const file = files[i]
         const formData = new FormData()
         formData.append("file", file)
-        formData.append("productId", selectedProduct.id)
 
         const response = await fetch("/api/upload", {
           method: "POST",
@@ -284,14 +309,11 @@ export default function ProductosPage() {
       }
 
       // Actualizar las imágenes del producto
-      await updateProductImages(selectedProduct.id, [...selectedProduct.images.map((img) => img.url), ...newImages])
+      const updatedImages = [...selectedProduct.images, ...newImages]
+      await updateProductImages(selectedProduct.id, updatedImages)
 
-      // Actualizar la lista de imágenes subidas
       setUploadedImages((prev) => [...prev, ...newImages])
-
       toast.success("Imágenes subidas correctamente")
-
-      // Actualizar la lista de productos
       fetchProducts()
     } catch (error) {
       console.error("Error al subir imágenes:", error)
@@ -307,8 +329,8 @@ export default function ProductosPage() {
   // Actualizar las imágenes del producto
   const updateProductImages = async (productId: string, imageUrls: string[]) => {
     try {
-      const response = await fetch(`/api/products/${productId}/images`, {
-        method: "PUT",
+      const response = await fetch(`/api/products/${productId}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
@@ -331,24 +353,15 @@ export default function ProductosPage() {
     if (!selectedProduct) return
 
     try {
-      // Asegurarse de que images es un array
-      const currentImages = selectedProduct.images || []
-
-      // Filtrar la imagen a eliminar
-      const updatedImages = currentImages.filter((img) => img.url !== imageUrl).map((img) => img.url)
-
-      // Actualizar las imágenes del producto
+      const updatedImages = selectedProduct.images.filter((img) => img !== imageUrl)
       await updateProductImages(productId, updatedImages)
 
-      // Actualizar el producto seleccionado
       setSelectedProduct({
         ...selectedProduct,
-        images: currentImages.filter((img) => img.url !== imageUrl),
+        images: updatedImages,
       })
 
       toast.success("Imagen eliminada correctamente")
-
-      // Actualizar la lista de productos
       fetchProducts()
     } catch (error) {
       console.error("Error al eliminar imagen:", error)
@@ -358,13 +371,15 @@ export default function ProductosPage() {
 
   // Abrir el panel de imágenes
   const openImageSheet = (product: Product) => {
-    // Asegurarse de que el producto tenga un array de imágenes
-    setSelectedProduct({
-      ...product,
-      images: product.images || [],
-    })
+    setSelectedProduct(product)
     setUploadedImages([])
     setIsImageSheetOpen(true)
+  }
+
+  // Abrir el diálogo de tallas
+  const openSizesDialog = (product: Product) => {
+    setSelectedProduct(product)
+    setIsSizesDialogOpen(true)
   }
 
   return (
@@ -387,7 +402,7 @@ export default function ProductosPage() {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -419,12 +434,25 @@ export default function ProductosPage() {
               </SelectContent>
             </Select>
 
+            <Select value={genderFilter} onValueChange={setGenderFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos los géneros" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los géneros</SelectItem>
+                <SelectItem value="HOMBRE">Hombre</SelectItem>
+                <SelectItem value="MUJER">Mujer</SelectItem>
+                <SelectItem value="UNISEX">Unisex</SelectItem>
+              </SelectContent>
+            </Select>
+
             <div className="flex justify-end">
               <Button
                 variant="outline"
                 onClick={() => {
                   setSearchTerm("")
                   setCategoryFilter("")
+                  setGenderFilter("")
                   setCurrentPage(1)
                 }}
               >
@@ -443,6 +471,8 @@ export default function ProductosPage() {
                 <TableHead className="w-[80px]">ID</TableHead>
                 <TableHead>Producto</TableHead>
                 <TableHead>Categoría</TableHead>
+                <TableHead>Género</TableHead>
+                <TableHead>Tallas</TableHead>
                 <TableHead className="text-right">Precio</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
@@ -451,7 +481,7 @@ export default function ProductosPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10">
+                  <TableCell colSpan={8} className="text-center py-10">
                     <div className="flex justify-center items-center">
                       <Loader2 className="h-6 w-6 animate-spin mr-2" />
                       <span>Cargando productos...</span>
@@ -459,75 +489,100 @@ export default function ProductosPage() {
                   </TableCell>
                 </TableRow>
               ) : products && products.length > 0 ? (
-                products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.id.substring(0, 8)}...</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={getProductImage(product) || "/placeholder.svg"}
-                          alt={product.name}
-                          className="h-10 w-10 rounded-md object-cover"
-                        />
-                        <div>
-                          <div className="font-medium">{product.name}</div>
-                          <div className="text-sm text-muted-foreground truncate max-w-[300px]">
-                            {product.description}
+                products.map((product) => {
+                  const totalStock = getTotalStock(product)
+                  return (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.id.substring(0, 8)}...</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={getProductImage(product) || "/placeholder.svg"}
+                            alt={product.name}
+                            className="h-10 w-10 rounded-md object-cover"
+                          />
+                          <div>
+                            <div className="font-medium">{product.name}</div>
+                            <div className="text-sm text-muted-foreground truncate max-w-[300px]">
+                              {product.description}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {product.category?.name || "Sin categoría"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{formatPrice(product.price)}</TableCell>
-                    <TableCell className="text-right">
-                      <span
-                        className={`font-medium ${
-                          product.stock > 20 ? "text-green-600" : product.stock > 5 ? "text-amber-600" : "text-red-600"
-                        }`}
-                      >
-                        {product.stock}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Acciones</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => openImageSheet(product)}>
-                            <ImageIcon className="mr-2 h-4 w-4" /> Gestionar imágenes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/admin/productos/editar/${product.id}`}>
-                              <Edit className="mr-2 h-4 w-4" /> Editar
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600 focus:text-red-600"
-                            onClick={() => {
-                              setDeleteProductId(product.id)
-                              setIsDeleteDialogOpen(true)
-                            }}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {product.category?.name || "Sin categoría"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={getGenderBadgeColor(product.gender)}>
+                          {product.gender}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {product.sizes && product.sizes.length > 0 ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openSizesDialog(product)}
+                            className="text-xs"
                           >
-                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
+                            {product.sizes.length} tallas
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Sin tallas</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">{formatPrice(product.price)}</TableCell>
+                      <TableCell className="text-right">
+                        <span
+                          className={`font-medium ${
+                            totalStock > 20 ? "text-green-600" : totalStock > 5 ? "text-amber-600" : "text-red-600"
+                          }`}
+                        >
+                          {totalStock}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Acciones</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openImageSheet(product)}>
+                              <ImageIcon className="mr-2 h-4 w-4" /> Gestionar imágenes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openSizesDialog(product)}>
+                              <Eye className="mr-2 h-4 w-4" /> Ver tallas
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/admin/productos/editar/${product.id}`}>
+                                <Edit className="mr-2 h-4 w-4" /> Editar
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-600"
+                              onClick={() => {
+                                setDeleteProductId(product.id)
+                                setIsDeleteDialogOpen(true)
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-6">
+                  <TableCell colSpan={8} className="text-center py-6">
                     No se encontraron productos
                   </TableCell>
                 </TableRow>
@@ -547,47 +602,40 @@ export default function ProductosPage() {
                     />
                   </PaginationItem>
 
-                  {/* Primera página */}
                   {currentPage > 2 && (
                     <PaginationItem>
                       <PaginationLink onClick={() => setCurrentPage(1)}>1</PaginationLink>
                     </PaginationItem>
                   )}
 
-                  {/* Elipsis si estamos lejos del inicio */}
                   {currentPage > 3 && (
                     <PaginationItem>
                       <PaginationEllipsis />
                     </PaginationItem>
                   )}
 
-                  {/* Página anterior si no estamos en la primera */}
                   {currentPage > 1 && (
                     <PaginationItem>
                       <PaginationLink onClick={() => setCurrentPage(currentPage - 1)}>{currentPage - 1}</PaginationLink>
                     </PaginationItem>
                   )}
 
-                  {/* Página actual */}
                   <PaginationItem>
                     <PaginationLink isActive>{currentPage}</PaginationLink>
                   </PaginationItem>
 
-                  {/* Página siguiente si no estamos en la última */}
                   {currentPage < totalPages && (
                     <PaginationItem>
                       <PaginationLink onClick={() => setCurrentPage(currentPage + 1)}>{currentPage + 1}</PaginationLink>
                     </PaginationItem>
                   )}
 
-                  {/* Elipsis si estamos lejos del final */}
                   {currentPage < totalPages - 2 && (
                     <PaginationItem>
                       <PaginationEllipsis />
                     </PaginationItem>
                   )}
 
-                  {/* Última página */}
                   {currentPage < totalPages - 1 && (
                     <PaginationItem>
                       <PaginationLink onClick={() => setCurrentPage(totalPages)}>{totalPages}</PaginationLink>
@@ -613,7 +661,7 @@ export default function ProductosPage() {
           <DialogHeader>
             <DialogTitle>¿Estás seguro?</DialogTitle>
             <DialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el producto.
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el producto y todas sus tallas.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -623,6 +671,45 @@ export default function ProductosPage() {
             <Button variant="destructive" onClick={handleDeleteProduct}>
               Eliminar
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para ver tallas */}
+      <Dialog open={isSizesDialogOpen} onOpenChange={setIsSizesDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tallas del producto</DialogTitle>
+            <DialogDescription>{selectedProduct?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {selectedProduct?.sizes && selectedProduct.sizes.length > 0 ? (
+              <div className="space-y-3">
+                {selectedProduct.sizes.map((size) => (
+                  <div key={size.id} className="flex justify-between items-center p-3 border rounded-lg">
+                    <span className="font-medium">{size.size}</span>
+                    <span
+                      className={`font-medium ${
+                        size.stock > 20 ? "text-green-600" : size.stock > 5 ? "text-amber-600" : "text-red-600"
+                      }`}
+                    >
+                      {size.stock} unidades
+                    </span>
+                  </div>
+                ))}
+                <div className="border-t pt-3 mt-3">
+                  <div className="flex justify-between items-center font-semibold">
+                    <span>Total:</span>
+                    <span>{getTotalStock(selectedProduct)} unidades</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-4">No hay tallas configuradas para este producto</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsSizesDialogOpen(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -638,13 +725,11 @@ export default function ProductosPage() {
           <div className="py-6">
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                {selectedProduct?.images &&
-                Array.isArray(selectedProduct.images) &&
-                selectedProduct.images.length > 0 ? (
-                  selectedProduct.images.map((image) => (
-                    <div key={image.id} className="relative group">
+                {selectedProduct?.images && selectedProduct.images.length > 0 ? (
+                  selectedProduct.images.map((imageUrl, index) => (
+                    <div key={index} className="relative group">
                       <img
-                        src={image.url || "/placeholder.svg"}
+                        src={imageUrl || "/placeholder.svg"}
                         alt="Imagen del producto"
                         className="w-full aspect-square object-cover rounded-md"
                       />
@@ -652,7 +737,7 @@ export default function ProductosPage() {
                         variant="destructive"
                         size="icon"
                         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleDeleteImage(selectedProduct.id, image.url)}
+                        onClick={() => handleDeleteImage(selectedProduct.id, imageUrl)}
                       >
                         <X className="h-4 w-4" />
                       </Button>
