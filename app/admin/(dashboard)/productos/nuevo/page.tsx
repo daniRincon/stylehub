@@ -121,7 +121,7 @@ export default function NuevoProductoPage() {
         const uploadFormData = new FormData()
         uploadFormData.append("file", file)
 
-        const uploadResponse = await fetch("/api/upload", {
+        const uploadResponse = await fetch("/api/upload-blob", {
           method: "POST",
           body: uploadFormData,
         })
