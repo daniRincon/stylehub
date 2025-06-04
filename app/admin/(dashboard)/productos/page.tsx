@@ -301,7 +301,7 @@ export default function ProductosPage() {
         const formData = new FormData()
         formData.append("file", file)
 
-        const response = await fetch("/api/upload", {
+        const response = await fetch("/api/upload-blob", {
           method: "POST",
           body: formData,
         })
