@@ -79,9 +79,12 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
     // Asegurarnos de que el stock sea un número válido
     const productStock = typeof product.stock === "number" ? product.stock : 0
 
+    // Crear el ID único para el carrito (producto + talla si aplica)
+    const cartItemId = selectedSize ? `${product.id}-${selectedSize}` : product.id
+
     const cartItem: CartItem = {
-      id: selectedSize ? `${product.id}-${selectedSize}` : product.id,
-      productId: product.id, // Asegurarnos de que esto esté definido
+      id: cartItemId, // ID único para el carrito
+      productId: product.id, // ID del producto en la base de datos
       name: product.name,
       price: product.price,
       image: imageUrl,
@@ -125,7 +128,12 @@ export default function ProductDetails({ product, averageRating }: ProductDetail
   const productStock = typeof product.stock === "number" ? product.stock : 0
 
   // Debug log para verificar el producto
-  console.log("Product in ProductDetails:", { id: product.id, name: product.name, stock: product.stock })
+  console.log("Product in ProductDetails:", {
+    id: product.id,
+    name: product.name,
+    stock: product.stock,
+    fullProduct: product,
+  })
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

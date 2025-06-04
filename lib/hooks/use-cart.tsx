@@ -47,9 +47,21 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
         }
       }
 
+      // Crear el nuevo item asegurándonos de que tenga todos los campos requeridos
+      const newItem: CartItem = {
+        id: action.payload.id,
+        productId: action.payload.productId,
+        name: action.payload.name,
+        price: action.payload.price,
+        image: action.payload.image,
+        size: action.payload.size,
+        quantity: action.payload.quantity || 1,
+        stock: action.payload.stock,
+      }
+
       return {
         ...state,
-        items: [...state.items, { ...action.payload, quantity: action.payload.quantity || 1 }],
+        items: [...state.items, newItem],
       }
     }
 
@@ -88,14 +100,27 @@ const cartReducer = (state: CartState, action: CartAction): CartState => {
       }
 
     case "LOAD_CART":
-      // Filtrar items que no tengan productId válido
-      const validItems = action.payload.filter((item) => {
-        if (!item.productId) {
-          console.warn("Removing invalid cart item without productId:", item)
-          return false
-        }
-        return true
-      })
+      // Filtrar items que no tengan productId válido y migrar items antiguos
+      const validItems = action.payload
+        .map((item) => {
+          // Si el item no tiene productId pero tiene id, intentar migrarlo
+          if (!item.productId && item.id) {
+            // Extraer productId del id del carrito (formato: productId-size o solo productId)
+            const productId = item.id.includes("-") ? item.id.split("-")[0] : item.id
+            if (productId) {
+              console.log("Migrating cart item:", { old: item.id, productId })
+              return { ...item, productId }
+            }
+          }
+          return item
+        })
+        .filter((item) => {
+          if (!item.productId) {
+            console.warn("Removing invalid cart item without productId:", item)
+            return false
+          }
+          return true
+        })
 
       return {
         ...state,
@@ -164,6 +189,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       ...item,
       stock: typeof item.stock === "number" ? item.stock : 0,
     }
+
+    console.log("Adding item to cart (useCart):", itemWithValidStock)
 
     dispatch({ type: "ADD_ITEM", payload: itemWithValidStock })
   }
