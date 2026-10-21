@@ -37,9 +37,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
+          prompt: "select_account",
         },
       },
     }),
@@ -118,10 +116,21 @@ export const authOptions: NextAuthOptions = {
       console.log("SignIn callback:", { user, account: account?.provider, profile })
 
       if (account?.provider === "google") {
+        const googleProfile = profile as { email_verified?: boolean } | undefined
+        const email = user.email?.toLowerCase()
+
+        // Solo aceptar cuentas de Google con email verificado
+        if (!email || googleProfile?.email_verified === false) {
+          console.error("Google signIn rechazado: email ausente o no verificado")
+          return false
+        }
+
+        const name = user.name || email.split("@")[0]
+
         try {
           // Verificar si el customer ya existe
           const existingCustomers = await sql`
-            SELECT * FROM customers WHERE email = ${user.email} LIMIT 1
+            SELECT * FROM customers WHERE email = ${email} LIMIT 1
           `
 
           let customerId = existingCustomers[0]?.id
@@ -130,7 +139,7 @@ export const authOptions: NextAuthOptions = {
             // Crear nuevo customer con email verificado automáticamente
             const newCustomers = await sql`
               INSERT INTO customers (id, email, name, password, "emailVerified", "createdAt", "updatedAt")
-              VALUES (gen_random_uuid()::text, ${user.email}, ${user.name}, '', NOW(), NOW(), NOW())
+              VALUES (gen_random_uuid()::text, ${email}, ${name}, '', NOW(), NOW(), NOW())
               RETURNING id
             `
             customerId = newCustomers[0].id
@@ -140,7 +149,7 @@ export const authOptions: NextAuthOptions = {
             if (!existingCustomers[0].emailVerified) {
               await sql`
                 UPDATE customers 
-                SET "emailVerified" = NOW(), name = ${user.name}
+                SET "emailVerified" = NOW(), name = ${name}
                 WHERE id = ${customerId}
               `
             }
@@ -169,10 +178,6 @@ export const authOptions: NextAuthOptions = {
             console.log("Nueva cuenta OAuth creada")
           }
 
-          // Actualizar información del usuario
-          user.id = customerId
-          user.role = "CUSTOMER"
-
           return true
         } catch (error) {
           console.error("Error en signIn callback:", error)
@@ -182,6 +187,20 @@ export const authOptions: NextAuthOptions = {
       return true
     },
     async jwt({ token, user, account }) {
+      // En Google, user.id es el id de Google: resolver el customer por email
+      if (account?.provider === "google" && user?.email) {
+        const customers = await sql`
+          SELECT id FROM customers WHERE email = ${user.email.toLowerCase()} LIMIT 1
+        `
+        const customerId = customers[0]?.id
+        if (customerId) {
+          token.id = customerId
+          token.role = "CUSTOMER"
+          token.customerId = customerId
+        }
+        return token
+      }
+
       if (user) {
         token.id = user.id
         token.role = user.role

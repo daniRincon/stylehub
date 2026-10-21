@@ -10,7 +10,7 @@ let gmailTransporter: nodemailer.Transporter | null = null
 // Inicializar Gmail transporter solo si las credenciales están disponibles
 if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
   try {
-    gmailTransporter = nodemailer.createTransporter({
+    gmailTransporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.GMAIL_USER,

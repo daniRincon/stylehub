@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { signIn, useSession, signOut } from "next-auth/react"
@@ -19,6 +19,7 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get("callbackUrl") || "/cuenta"
+  const authError = searchParams.get("error")
   const { data: session, status } = useSession()
 
   const [isLoading, setIsLoading] = useState(false)
@@ -31,6 +32,18 @@ export default function LoginPage() {
 
   // Si hay una sesión activa y es un ADMIN, mostrar mensaje
   const isAdmin = session?.user?.role === "ADMIN"
+
+  useEffect(() => {
+    if (!authError) return
+    const messages: Record<string, string> = {
+      AccessDenied: "No se pudo iniciar sesión con Google. Verifica que tu correo de Google esté confirmado.",
+      OAuthSignin: "No se pudo conectar con Google. Intenta nuevamente.",
+      OAuthCallback: "Google rechazó el inicio de sesión. Intenta nuevamente.",
+      Callback: "Ocurrió un error al iniciar sesión. Intenta nuevamente.",
+      CredentialsSignin: "Credenciales incorrectas o email no verificado",
+    }
+    toast.error(messages[authError] || "Error al iniciar sesión")
+  }, [authError])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
