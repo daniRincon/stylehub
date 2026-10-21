@@ -26,7 +26,8 @@ import StoreFooter from "@/components/store/store-footer";
 import { Loader2, ShoppingCart, Plus, MapPin, CreditCard } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import type { Address } from "@/types/address"; // ajusta la ruta según tu proyecto
+import type { Address } from "@/types/address";
+import { useSwitchMode } from "@/lib/hooks/use-switch-mode"; // ajusta la ruta según tu proyecto
 
 
 // Inicializar Stripe
@@ -708,38 +709,116 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ userProfile }) => {
   );
 }
 
+function CheckoutMessage({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <StoreHeader />
+      <main className="flex-1 py-12">
+        <div className="container mx-auto px-4">
+          <div className="max-w-lg mx-auto text-center">
+            <h1 className="text-2xl font-bold mb-4">{title}</h1>
+            {children}
+          </div>
+        </div>
+      </main>
+      <StoreFooter />
+    </div>
+  );
+}
+
 export default function CheckoutPage() {
+  const router = useRouter();
   const { data: session, status } = useSession();
+  const { canSwitch, isSwitching, switchMode } = useSwitchMode();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const isCustomer = session?.user.role === "CUSTOMER";
+
   useEffect(() => {
-    if (status === "authenticated" && session?.user.role === "CUSTOMER") {
-      setLoading(true);
-      fetch("/api/user/profile")
-        .then(async (res) => {
-          if (!res.ok) throw new Error("No autorizado o error al obtener perfil");
-          const data = await res.json();
-          setProfile(data.user);
-        })
-        .catch((err) => setError(err.message))
-        .finally(() => setLoading(false));
-    } else if (status === "unauthenticated") {
-      setError("No estás autenticado.");
+    if (status === "unauthenticated") {
+      router.push("/login?callbackUrl=/checkout");
+      return;
     }
-  }, [status, session]);
+    if (status !== "authenticated") return;
+    if (!isCustomer) {
+      setLoading(false);
+      return;
+    }
 
-  if (loading) return <p>Cargando perfil...</p>;
-  if (error) return <p>Error: {error}</p>;
-  if (!profile) return <p>Perfil no disponible.</p>;
+    setLoading(true);
+    setError(null);
+    fetch("/api/user/profile")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("No se pudo obtener tu perfil");
+        const data = await res.json();
+        setProfile(data.user);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [status, isCustomer, router]);
 
-  
+  if (status === "loading" || status === "unauthenticated" || (isCustomer && loading)) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <StoreHeader />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gold" />
+            <p>Cargando...</p>
+          </div>
+        </main>
+        <StoreFooter />
+      </div>
+    );
+  }
+
+  if (!isCustomer) {
+    return (
+      <CheckoutMessage title="Inicia sesión como cliente">
+        <p className="mb-6">
+          Tienes una sesión de administrador activa. Para finalizar la compra cambia a modo cliente con tu misma
+          cuenta, o inicia sesión con otra cuenta de cliente.
+        </p>
+        <div className="flex flex-col sm:flex-row justify-center gap-4">
+          {canSwitch && (
+            <Button
+              onClick={() => switchMode("CUSTOMER", "/checkout")}
+              disabled={isSwitching}
+              className="bg-gold hover:bg-gold/90 text-white"
+            >
+              {isSwitching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Comprar como cliente
+            </Button>
+          )}
+          <Button asChild variant="outline">
+            <Link href="/login?callbackUrl=/checkout">Usar otra cuenta</Link>
+          </Button>
+        </div>
+      </CheckoutMessage>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <CheckoutMessage title="No pudimos cargar tu perfil">
+        <p className="mb-6">{error || "Perfil no disponible."} Intenta recargar la página o completa tu perfil.</p>
+        <div className="flex justify-center gap-4">
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Reintentar
+          </Button>
+          <Button asChild className="bg-gold hover:bg-gold/90 text-white">
+            <Link href="/cuenta/perfil">Ir a mi perfil</Link>
+          </Button>
+        </div>
+      </CheckoutMessage>
+    );
+  }
 
   return (
     <Elements stripe={stripePromise}>
-      <CheckoutForm userProfile={profile as UserProfile} />
+      <CheckoutForm userProfile={profile} />
     </Elements>
   );
-  
 }

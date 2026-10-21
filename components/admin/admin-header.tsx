@@ -15,13 +15,15 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Bell, Search, Settings, User, LogOut, Shield, HelpCircle, Moon, Sun } from "lucide-react"
+import { Bell, Search, Settings, User, LogOut, Shield, HelpCircle, Moon, Sun, ShoppingBag } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import Link from "next/link"
+import { useSwitchMode } from "@/lib/hooks/use-switch-mode"
 
 export default function AdminHeader() {
   const { data: session } = useSession()
+  const { canSwitch, isSwitching, switchMode } = useSwitchMode()
   const [searchQuery, setSearchQuery] = useState("")
   const [isDarkMode, setIsDarkMode] = useState(false)
 
@@ -179,6 +181,16 @@ export default function AdminHeader() {
                   Ver tienda
                 </Link>
               </DropdownMenuItem>
+              {canSwitch && (
+                <DropdownMenuItem
+                  onClick={() => switchMode("CUSTOMER", "/tienda")}
+                  disabled={isSwitching}
+                  className="cursor-pointer"
+                >
+                  <ShoppingBag className="mr-2 h-4 w-4" />
+                  {isSwitching ? "Cambiando..." : "Comprar como cliente"}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />

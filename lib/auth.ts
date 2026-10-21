@@ -30,6 +30,28 @@ async function verifyPassword(plain: string, hashed: string): Promise<boolean> {
   }
 }
 
+// Busca (o crea) el perfil de cliente asociado al email de un administrador
+async function getCustomerIdForAdmin(adminId: string): Promise<string | null> {
+  const admins = await sql`
+    SELECT email, name FROM users WHERE id = ${adminId} LIMIT 1
+  `
+  const admin = admins[0]
+  if (!admin) return null
+
+  const email = String(admin.email).toLowerCase()
+  const existing = await sql`
+    SELECT id FROM customers WHERE email = ${email} LIMIT 1
+  `
+  if (existing[0]) return existing[0].id
+
+  const created = await sql`
+    INSERT INTO customers (id, email, name, password, "emailVerified", "createdAt", "updatedAt")
+    VALUES (gen_random_uuid()::text, ${email}, ${admin.name}, '', NOW(), NOW(), NOW())
+    RETURNING id
+  `
+  return created[0].id
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -186,7 +208,27 @@ export const authOptions: NextAuthOptions = {
       }
       return true
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
+      // Cambio entre modo admin y modo cliente (solo sesiones que iniciaron como admin)
+      if (trigger === "update") {
+        const mode = (session as { mode?: string } | undefined)?.mode
+        if (!token.adminId || (mode !== "ADMIN" && mode !== "CUSTOMER")) return token
+
+        if (mode === "CUSTOMER") {
+          const customerId = await getCustomerIdForAdmin(token.adminId)
+          if (customerId) {
+            token.id = customerId
+            token.role = "CUSTOMER"
+            token.customerId = customerId
+          }
+        } else {
+          token.id = token.adminId
+          token.role = "ADMIN"
+          delete token.customerId
+        }
+        return token
+      }
+
       // En Google, user.id es el id de Google: resolver el customer por email
       if (account?.provider === "google" && user?.email) {
         const customers = await sql`
@@ -207,6 +249,9 @@ export const authOptions: NextAuthOptions = {
         if ("customerId" in user) {
           token.customerId = user.customerId
         }
+        if (user.role === "ADMIN") {
+          token.adminId = user.id
+        }
       }
       return token
     },
@@ -214,6 +259,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as "ADMIN" | "CUSTOMER"
+        session.user.isAdmin = !!token.adminId
         session.customer = token.customerId ? { id: token.customerId as string } : null
 
         if (session.user.role === "CUSTOMER") {

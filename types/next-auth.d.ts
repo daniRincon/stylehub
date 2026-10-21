@@ -6,6 +6,8 @@ declare module "next-auth" {
     user: {
       id: string
       role: "ADMIN" | "CUSTOMER"
+      // true si la sesión inició como admin (puede cambiar entre modo admin y cliente)
+      isAdmin?: boolean
     } & DefaultSession["user"]
     customer?: {
       id: string
@@ -24,5 +26,6 @@ declare module "next-auth/jwt" {
     id: string
     role: "ADMIN" | "CUSTOMER"
     customerId?: string
+    adminId?: string
   }
 }

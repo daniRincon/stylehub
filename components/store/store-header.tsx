@@ -17,13 +17,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Search, ShoppingCart, User, Menu, Heart, LogOut, Settings, Package, UserCircle } from "lucide-react"
+import { Search, ShoppingCart, User, Menu, Heart, LogOut, Settings, Package, UserCircle, Shield } from "lucide-react"
 import { useCart } from "@/lib/hooks/use-cart"
+import { useSwitchMode } from "@/lib/hooks/use-switch-mode"
 import { toast } from "sonner"
 
 export default function StoreHeader() {
   const { data: session, status } = useSession()
   const { items } = useCart()
+  const { canSwitch, isSwitching, switchMode } = useSwitchMode()
   const [searchQuery, setSearchQuery] = useState("")
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
@@ -149,6 +151,19 @@ export default function StoreHeader() {
                       Configuración
                     </Link>
                   </DropdownMenuItem>
+                  {canSwitch && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => switchMode("ADMIN", "/admin")}
+                        disabled={isSwitching}
+                        className="cursor-pointer"
+                      >
+                        <Shield className="mr-2 h-4 w-4" />
+                        {isSwitching ? "Cambiando..." : "Volver al panel admin"}
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -201,6 +216,17 @@ export default function StoreHeader() {
                       <Link href="/cuenta/pedidos" className="text-lg font-medium">
                         Mis pedidos
                       </Link>
+                      {canSwitch && (
+                        <Button
+                          variant="outline"
+                          onClick={() => switchMode("ADMIN", "/admin")}
+                          disabled={isSwitching}
+                          className="justify-start"
+                        >
+                          <Shield className="mr-2 h-4 w-4" />
+                          {isSwitching ? "Cambiando..." : "Volver al panel admin"}
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         onClick={handleLogout}
