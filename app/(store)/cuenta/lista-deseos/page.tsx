@@ -17,6 +17,7 @@ interface WishlistItem {
   slug: string
   category: string
   inStock: boolean
+  stock?: number
 }
 
 export default function ListaDeseosPage() {
@@ -46,10 +47,13 @@ export default function ListaDeseosPage() {
 
     addItem({
       id: item.id,
+      productId: item.id,
       name: item.name,
       price: item.price,
       image: item.image,
       quantity: 1,
+      stock: item.stock ?? 1,
+      slug: item.slug,
     })
     toast.success("Producto agregado al carrito")
   }

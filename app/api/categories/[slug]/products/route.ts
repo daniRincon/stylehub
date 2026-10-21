@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 
 // GET /api/categories/[slug]/products - Obtener productos de una categoría
-export async function GET(request: Request, { params }: { params: { slug: string } }) {
+export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
+  const params = await context.params
   try {
     const { searchParams } = new URL(request.url)
 

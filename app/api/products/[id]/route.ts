@@ -10,8 +10,9 @@ interface ImageInput {
 // GET /api/products/[id] - Obtener un producto por ID
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const product = await prisma.product.findUnique({
       where: { id: params.id },
@@ -41,8 +42,9 @@ export async function GET(
 // PUT /api/products/[id] - Actualizar un producto
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const session = await getServerSession(authOptions);
 
@@ -152,8 +154,9 @@ export async function PUT(
 // DELETE /api/products/[id] - Eliminar un producto
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
+  const params = await context.params;
   try {
     const session = await getServerSession(authOptions);
 

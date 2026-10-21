@@ -4,7 +4,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 
 // POST /api/admin/orders/[id]/invoice - Generar factura para un pedido
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   try {
     const session = await getServerSession({ req, ...authOptions })
 
@@ -40,7 +41,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             },
           },
         },
-        invoice: true,
       },
     })
 
@@ -48,25 +48,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: "Pedido no encontrado" }, { status: 404 })
     }
 
-    // Verificar si ya existe una factura
-    let invoice = order.invoice
-
-    if (!invoice) {
-      // Crear nueva factura
-      invoice = await prisma.invoice.create({
-        data: {
-          orderId: order.id,
-          invoiceDate: new Date(),
-          totalAmount: order.total,
-        },
-      })
-    }
-
     // Por ahora, retornamos un JSON con los datos de la factura
     // En una implementación real, aquí generarías un PDF
     const invoiceData = {
-      invoiceNumber: invoice.id,
-      invoiceDate: invoice.invoiceDate.toISOString(),
+      invoiceNumber: order.id,
+      invoiceDate: new Date().toISOString(),
       order: {
         id: order.id,
         date: order.createdAt.toISOString(),
@@ -79,9 +65,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         unitPrice: Number(item.price),
         total: Number(item.price) * item.quantity,
       })),
-      subtotal: Number(order.total),
-      tax: Number(order.total) * 0.19, // IVA 19% Colombia
-      total: Number(order.total) * 1.19,
+      subtotal: order.subtotal,
+      tax: order.tax,
+      shipping: order.shipping,
+      total: order.total,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
     }
 
     // Simular descarga de PDF (en una implementación real usarías una librería como puppeteer o jsPDF)

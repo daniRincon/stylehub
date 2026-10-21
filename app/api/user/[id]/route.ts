@@ -5,7 +5,8 @@ import { authOptions } from "@/lib/auth"
 import { hash } from "bcryptjs"
 
 // GET /api/user/[id] - Obtener un usuario por ID
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   try {
     const session = await getServerSession(authOptions)
     const userId = params.id
@@ -52,7 +53,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
 }
 
 // PUT /api/user/[id] - Actualizar un usuario
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   try {
     const session = await getServerSession(authOptions)
     const userId = params.id
@@ -140,7 +142,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE /api/user/[id] - Eliminar un usuario
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   try {
     const session = await getServerSession(authOptions)
     const userId = params.id

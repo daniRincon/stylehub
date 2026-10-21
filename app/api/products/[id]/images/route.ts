@@ -5,7 +5,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 
 // PUT /api/products/[id]/images - Actualizar imágenes de un producto
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   try {
     const session = await getServerSession(authOptions)
 

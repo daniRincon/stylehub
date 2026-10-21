@@ -4,9 +4,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 interface RouteParams {
-    params: {
+    params: Promise<{
         slug: string;
-    };
+    }>;
 }
 
 // GET /api/categories/[slug] - Obtener una categoría por slug
@@ -15,7 +15,7 @@ export async function GET(
     { params }: RouteParams
 ) {
     try {
-        const { slug } = params;
+        const { slug } = await params;
 
         const category = await prisma.category.findUnique({
             where: { slug },
@@ -60,7 +60,7 @@ export async function PUT(
             )
         }
 
-        const { slug } = params;
+        const { slug } = await params;
         const body = await request.json()
         const { name, newSlug, image, description } = body
 
@@ -126,7 +126,7 @@ export async function DELETE(
             )
         }
 
-        const { slug } = params;
+        const { slug } = await params;
 
         // Verificar si la categoría existe
         const existingCategory = await prisma.category.findUnique({

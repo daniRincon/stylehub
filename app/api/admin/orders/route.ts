@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = req.nextUrl
     const search = searchParams.get("search")
-    const status = searchParams.get("status") as OrderStatus | null
+    const status = searchParams.get("status")
     const limit = Number.parseInt(searchParams.get("limit") || "10")
     const page = Number.parseInt(searchParams.get("page") || "1")
     const skip = (page - 1) * limit
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     const where: any = {}
 
     // Filtro por estado
-    if (status && status !== "all" && Object.values(OrderStatus).includes(status)) {
+    if (status && Object.values(OrderStatus).includes(status as OrderStatus)) {
       where.status = status
     }
 
@@ -79,13 +79,6 @@ export async function GET(req: NextRequest) {
                   },
                 },
               },
-            },
-          },
-          payment: {
-            select: {
-              method: true,
-              status: true,
-              paidAt: true,
             },
           },
         },

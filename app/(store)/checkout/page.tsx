@@ -255,7 +255,7 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ userProfile }) => {
             amount: Math.round((getTotalPrice() || 0) * 1.19 * 100),
             currency: "cop",
             items: items.map((item) => ({
-              productId: item.id.split("-")[0],
+              productId: item.productId || item.id,
               quantity: item.quantity,
               price: item.price,
               size: item.size || null,
@@ -295,12 +295,18 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ userProfile }) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               items: items.map((item) => ({
-                productId: item.id.split("-")[0],
+                productId: item.productId || item.id,
                 quantity: item.quantity,
                 price: item.price,
                 size: item.size || null,
               })),
-              shippingAddress: `${selectedAddr.address}, ${selectedAddr.city}, ${selectedAddr.state}, ${selectedAddr.postalCode}, ${selectedAddr.country}`,
+              shippingAddress: {
+                street: selectedAddr.address,
+                city: selectedAddr.city,
+                state: selectedAddr.state,
+                zipCode: selectedAddr.postalCode,
+                country: selectedAddr.country,
+              },
               paymentMethod: "stripe",
               paymentIntentId: paymentIntent.id,
               total: (getTotalPrice() || 0) * 1.19,
@@ -323,12 +329,18 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ userProfile }) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             items: items.map((item) => ({
-              productId: item.id.split("-")[0],
+              productId: item.productId || item.id,
               quantity: item.quantity,
               price: item.price,
               size: item.size || null,
             })),
-            shippingAddress: `${selectedAddr.address}, ${selectedAddr.city}, ${selectedAddr.state}, ${selectedAddr.postalCode}, ${selectedAddr.country}`,
+            shippingAddress: {
+              street: selectedAddr.address,
+              city: selectedAddr.city,
+              state: selectedAddr.state,
+              zipCode: selectedAddr.postalCode,
+              country: selectedAddr.country,
+            },
             paymentMethod: paymentMethod,
             total: (getTotalPrice() || 0) * 1.19,
           }),
@@ -344,9 +356,10 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ userProfile }) => {
         toast.success("¡Pedido creado exitosamente!");
         router.push(`/checkout/confirmacion?orderId=${orderId}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error al procesar el pedido:", error);
-      toast.error(error.message || "Error al procesar el pedido. Intenta nuevamente.");
+      const errorMessage = error instanceof Error ? error.message : "Error al procesar el pedido. Intenta nuevamente.";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

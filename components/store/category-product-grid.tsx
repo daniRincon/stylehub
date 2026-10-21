@@ -77,10 +77,13 @@ export default function CategoryProductGrid({ categorySlug }: CategoryProductGri
   const handleAddToCart = (product: Product) => {
     addItem({
       id: product.id,
+      productId: product.id, // ✅ Agregamos productId
       name: product.name,
       price: product.price,
       image: product.images[0]?.url || "/placeholder.svg",
       quantity: 1,
+      stock: product.stock, // ✅ Agregamos stock
+      slug: product.slug, // ✅ Agregamos slug
     })
 
     toast.success(`${product.name} añadido al carrito`)

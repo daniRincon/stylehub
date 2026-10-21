@@ -158,7 +158,7 @@ export const authOptions: NextAuthOptions = {
             await sql`
               INSERT INTO customer_accounts (
                 id, "customerId", type, provider, "providerAccountId", 
-                access_token, expires_at, token_type, scope, id_token, created_at, updated_at
+                access_token, expires_at, token_type, scope, id_token, "createdAt", "updatedAt"
               )
               VALUES (
                 gen_random_uuid()::text, ${customerId}, ${account.type}, ${account.provider}, ${account.providerAccountId},

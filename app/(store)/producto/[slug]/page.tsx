@@ -164,7 +164,7 @@ export default function ProductPage() {
           <div className="mt-16">
             <h2 className="text-2xl font-bold mb-6">Productos relacionados</h2>
             <Suspense fallback={<RelatedProductsSkeleton />}>
-              <RelatedProducts categoryId={product.categoryId || ""} currentProductId={product.id} />
+              <RelatedProducts categoryId={product.categoryId || ""} productId={product.id} />
             </Suspense>
           </div>
         </div>
@@ -189,11 +189,14 @@ function ClientSideActions({ product }: { product: Product }) {
 
     addItem({
       id: `${product.id}-${selectedSize}`,
+      productId: product.id, // ✅ Agregamos productId
       name: product.name,
       price: product.price,
       image: product.images?.[0]?.url || product.image || "/placeholder.svg",
       quantity,
       size: selectedSize,
+      stock: product.stock, // ✅ Agregamos stock
+      slug: product.slug, // ✅ Agregamos slug
     })
 
     toast.success(`${product.name} (Talla: ${selectedSize}) añadido al carrito.`)

@@ -4,7 +4,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 
 // GET /api/admin/orders/[id] - Obtener detalles de un pedido específico
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params
   try {
     const session = await getServerSession({ req, ...authOptions })
 
@@ -44,22 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             },
           },
         },
-        payment: {
-          select: {
-            id: true,
-            method: true,
-            status: true,
-            paidAt: true,
-            createdAt: true,
-          },
-        },
-        invoice: {
-          select: {
-            id: true,
-            invoiceDate: true,
-            totalAmount: true,
-          },
-        },
+        shippingAddress: true,
       },
     })
 

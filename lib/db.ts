@@ -79,19 +79,21 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
 
 // Pedidos
 export async function createOrder(data: {
-    userId: string
+    customerId: string
     items: { productId: string; quantity: number; price: number }[]
     total: number
-    shippingAddress: string
+    subtotal: number
+    shippingAddressId?: string
     paymentMethod: string
 }): Promise<OrderWithItemsAndProduct> {
     try {
         return await prisma.$transaction(async (tx) => {
             const order = await tx.order.create({
                 data: {
-                    userId: data.userId,
+                    customerId: data.customerId,
                     total: data.total,
-                    shippingAddress: data.shippingAddress,
+                    subtotal: data.subtotal,
+                    shippingAddressId: data.shippingAddressId,
                     paymentMethod: data.paymentMethod,
                     items: {
                         create: data.items.map(item => ({
@@ -122,10 +124,10 @@ export async function createOrder(data: {
     }
 }
 
-export async function getOrdersByUser(userId: string): Promise<OrderWithItemsAndProduct[]> {
+export async function getOrdersByCustomer(customerId: string): Promise<OrderWithItemsAndProduct[]> {
     try {
         return await prisma.order.findMany({
-            where: { userId },
+            where: { customerId },
             include: {
                 items: {
                     include: {

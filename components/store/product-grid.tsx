@@ -23,10 +23,12 @@ export default function ProductGrid({ products }: ProductGridProps) {
 
     const cartItem: CartItem = {
       id: product.id,
+      productId: product.id, // ✅ Agregamos productId
       name: product.name,
       price: product.price,
       image: imageUrl,
       quantity: 1,
+      stock: product.stock, // ✅ Agregamos stock
       slug: product.slug,
     }
 

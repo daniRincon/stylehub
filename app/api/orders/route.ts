@@ -130,14 +130,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Crear o encontrar la dirección de envío
+    let shippingAddressRecord;
+    if (shippingAddress) {
+      shippingAddressRecord = await prisma.address.create({
+        data: {
+          customerId: session.customer.id,
+          street: shippingAddress.street || shippingAddress.address || '',
+          city: shippingAddress.city || '',
+          state: shippingAddress.state || '',
+          zipCode: shippingAddress.zipCode || shippingAddress.postalCode || '',
+          country: shippingAddress.country || 'Colombia',
+          isDefault: false,
+        },
+      });
+    }
+
     const order = await prisma.order.create({
       data: {
         customerId: session.customer.id,
         total,
-        shippingAddress,
+        subtotal: total / 1.19, // El total incluye IVA del 19%
+        tax: total - total / 1.19,
+        shipping: 0,
         paymentMethod,
-        paymentIntentId,
+        paymentStatus: paymentMethod === "stripe" ? "COMPLETED" : "PENDING",
+        stripePaymentId: paymentIntentId,
         status: paymentMethod === "stripe" ? OrderStatus.PAID : OrderStatus.PENDING,
+        shippingAddressId: shippingAddressRecord?.id,
         items: {
           create: items.map((item: OrderItemInput) => ({
             productId: item.productId,
@@ -156,15 +176,7 @@ export async function POST(req: NextRequest) {
             product: { include: { images: true } },
           },
         },
-      },
-    });
-
-    await prisma.payment.create({
-      data: {
-        orderId: order.id,
-        method: paymentMethod,
-        status: paymentMethod === "stripe" ? "COMPLETED" : "PENDING",
-        paidAt: paymentMethod === "stripe" ? new Date() : null,
+        shippingAddress: true,
       },
     });
 

@@ -15,7 +15,7 @@ interface SearchParams {
 }
 
 interface ClientesPageProps {
-  searchParams: SearchParams
+  searchParams: Promise<SearchParams>
 }
 
 async function getCustomers(searchParams: SearchParams) {
@@ -90,7 +90,8 @@ async function getCustomers(searchParams: SearchParams) {
   }
 }
 
-export default async function ClientesPage({ searchParams }: ClientesPageProps) {
+export default async function ClientesPage(props: ClientesPageProps) {
+  const searchParams = await props.searchParams
   const { customers, total, pages, currentPage } = await getCustomers(searchParams)
 
   return (

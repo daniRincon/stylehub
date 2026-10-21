@@ -7,8 +7,9 @@ import { authOptions } from '@/lib/auth'
 // GET /api/products/[slug] - Obtener un producto por slug
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+  const params = await context.params
   try {
     const slug = params.slug
     
@@ -40,8 +41,9 @@ export async function GET(
 // PUT /api/products/[slug] - Actualizar un producto
 export async function PUT(
   request: Request,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+  const params = await context.params
   try {
     const session = await getServerSession(authOptions)
     
@@ -145,8 +147,9 @@ export async function PUT(
 // DELETE /api/products/[slug] - Eliminar un producto
 export async function DELETE(
   request: Request,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
+  const params = await context.params
   try {
     const session = await getServerSession(authOptions)
     
